@@ -1,3 +1,7 @@
 # all files ending with a tilde
 *~
 
+# Ignore dependencies
+executive_smach
+joystick_drivers
+
