@@ -93,10 +93,10 @@ void FrobitInterface::on_deadman(const std_msgs::Bool::ConstPtr& msg)
 void FrobitInterface::on_encoder(const msgs::nmea::ConstPtr& msg)
 {
 	messages.encoder.header.stamp = msg->header.stamp;
-	messages.encoder.encoderticks = boost::lexical_cast<int>(msg->data.at(0));
+	messages.encoder.encoderticks = boost::lexical_cast<int>(msg->data.at(1));
 	publishers.encoder_left.publish(messages.encoder);
 
-	messages.encoder.encoderticks = boost::lexical_cast<int>(msg->data.at(1));
+	messages.encoder.encoderticks = boost::lexical_cast<int>(msg->data.at(2));
 	publishers.encoder_right.publish(messages.encoder);
 }
 
