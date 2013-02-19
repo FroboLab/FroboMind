@@ -81,7 +81,7 @@ catkin_package(
 ## Mark executable scripts (Python etc.) for installation
 ## not required for python when using catkin_python_setup()
  install(PROGRAMS
-   scripts/wii_interface
+   src/wii_interface/wii_interface
    DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
  )
 
