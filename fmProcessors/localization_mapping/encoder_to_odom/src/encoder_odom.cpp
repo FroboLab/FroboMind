@@ -1,9 +1,41 @@
-/*
- * simple_odom.cpp
- *
- *  Created on: Apr 25, 2012
- *      Author: morl
- */
+/*****************************************************************************
+# FroboMind (encoder_odom)
+# Copyright (c) 2012-2013,
+#	Morten Larsen <mortenlarsens@gmail.com>
+#	Kjeld Jensen <kjeld@frobomind.org>
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#    * Redistributions of source code must retain the above copyright
+#      notice, this list of conditions and the following disclaimer.
+#    * Redistributions in binary form must reproduce the above copyright
+#      notice, this list of conditions and the following disclaimer in the
+#      documentation and/or other materials provided with the distribution.
+#    * Neither the name FroboMind nor the
+#      names of its contributors may be used to endorse or promote products
+#      derived from this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL <COPYRIGHT HOLDER> BE LIABLE FOR ANY
+# DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+# ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#*****************************************************************************
+#
+# This node subscribes to left and right encoder ticks from a differentially
+# steered robot platform and publishes an odometry message.
+#
+# 2012-04-25 morl Created
+# 2013-02-19 kjen Major cleanup
+#
+#****************************************************************************/
+
 #include <ros/ros.h>
 #include <ros/console.h>
 
@@ -44,9 +76,10 @@ public:
 			l_ready = true;
 		}
 		else
-		{
-			l_up_time = ros::Time::now();
-			delta_l += (msg->encoderticks - prev_l.encoderticks);
+		{	
+			l_time_prev = l_time_latest;
+			l_time_latest = ros::Time::now();
+			delta_l += msg->encoderticks;
 			prev_l = *msg;
 			l_updated = true;
 		}
@@ -62,8 +95,9 @@ public:
 		}
 		else
 		{
-			r_up_time = ros::Time::now();
-			delta_r += (msg->encoderticks - prev_r.encoderticks);
+			r_time_prev = r_time_latest;
+			r_time_latest = ros::Time::now();
+			delta_r += msg->encoderticks;
 			prev_r = *msg;
 			r_updated = true;
 		}
@@ -78,21 +112,18 @@ public:
 		if(l_updated && r_updated)
 		{
 			// check update times
-			if((l_up_time - r_up_time).toSec() > max_diff)
+			if((l_time_latest - r_time_latest).toSec() > max_diff)
 			{
-				ROS_WARN("Encoder stamp (left - right) differs %.4f",(l_up_time - r_up_time).toSec());
+				ROS_WARN("Encoder stamp (left - right) differs %.4f",(l_time_latest - r_time_latest).toSec());
 			}
-
 			r_updated = l_updated = false;
 			
-
 			delta_l *= tm_l; // convert from ticks to meter
 			delta_r *= tm_r;
-			//delta_l = 0.01;
-			//delta_r = 0.01;
+
 			double dx = (delta_l + delta_r)/2; // approx. distance (assuming linear motion during dt)
 			double dtheta = (delta_r - delta_l)/wdist; // change in orientation
-			ROS_INFO("Odo %.3f %.3f",delta_l, delta_r);
+			// ROS_INFO("Odo %.3f %.3f",delta_l, delta_r);
  			delta_l = delta_r = 0;
 
 			double ang = theta + dtheta/2;
@@ -105,7 +136,7 @@ public:
 			else if(theta > M_PI)
 				theta -= 2*M_PI;
 
-		//	ROS_INFO("Odo %.3f %.3f %2f",x, y, theta);
+			// ROS_INFO("Odo %.3f %.3f %2f",x, y, theta);
 
    			//since all odometry is 6DOF we'll need a quaternion created from yaw
 			geometry_msgs::Quaternion odom_quat = tf::createQuaternionMsgFromYaw(theta);
@@ -126,8 +157,9 @@ public:
 			odom.pose.pose.position.x = x;
 			odom.pose.pose.position.y = y;
 			odom.pose.pose.orientation = odom_quat;
-			odom.twist.twist.linear.x  = dx;
-			odom.twist.twist.angular.z = dtheta;
+			double dt = (l_time_latest - l_time_prev).toSec();
+			odom.twist.twist.linear.x  = dx/dt; 
+			odom.twist.twist.angular.z = dtheta/dt;
 			odom_pub.publish(odom);
 		}
 	}
@@ -142,7 +174,7 @@ private:
 	double wdist;
 	double delta_l, delta_r;
 	bool l_updated, r_updated;
-	ros::Time l_up_time, r_up_time;
+	ros::Time l_time_latest, l_time_prev, r_time_latest, r_time_prev;
 	bool l_ready, r_ready;
 	double max_diff;
 	double x, y, theta;
