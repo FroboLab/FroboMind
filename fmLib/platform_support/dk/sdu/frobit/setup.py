@@ -4,7 +4,7 @@ from distutils.core import setup
 from catkin_pkg.python_setup import generate_distutils_setup
 
 d = generate_distutils_setup(
-  scripts=['scripts/frobit_test_motor.py'],
+  scripts=['scripts/frobit_test_motor.py','scripts/frobit_test_set_speed.py'],
 )
 
 setup(**d)
