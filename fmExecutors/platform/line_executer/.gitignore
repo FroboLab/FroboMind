@@ -1,0 +1,5 @@
+cfg/cpp/
+*.cfgc
+docs/
+src/line_executer/__init__.py
+src/line_executer/cfg/
