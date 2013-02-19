@@ -45,8 +45,10 @@ public:
 		}
 		else
 		{
+			ROS_INFO("TicksLeft %d",msg->encoderticks);
+
 			l_up_time = ros::Time::now();
-			delta_l += (msg->encoderticks - prev_l.encoderticks);
+			delta_l += msg->encoderticks;
 			prev_l = *msg;
 			l_updated = true;
 		}
@@ -63,7 +65,7 @@ public:
 		else
 		{
 			r_up_time = ros::Time::now();
-			delta_r += (msg->encoderticks - prev_r.encoderticks);
+			delta_r += msg->encoderticks;
 			prev_r = *msg;
 			r_updated = true;
 		}
@@ -82,17 +84,15 @@ public:
 			{
 				ROS_WARN("Encoder stamp (left - right) differs %.4f",(l_up_time - r_up_time).toSec());
 			}
-
 			r_updated = l_updated = false;
+			ROS_INFO("Odo deltaticks %.1f %.1f",delta_l, delta_r);
 			
-
 			delta_l *= tm_l; // convert from ticks to meter
 			delta_r *= tm_r;
-			//delta_l = 0.01;
-			//delta_r = 0.01;
+
 			double dx = (delta_l + delta_r)/2; // approx. distance (assuming linear motion during dt)
 			double dtheta = (delta_r - delta_l)/wdist; // change in orientation
-			ROS_INFO("Odo %.3f %.3f",delta_l, delta_r);
+			// ROS_INFO("Odo %.3f %.3f",delta_l, delta_r);
  			delta_l = delta_r = 0;
 
 			double ang = theta + dtheta/2;
@@ -105,7 +105,7 @@ public:
 			else if(theta > M_PI)
 				theta -= 2*M_PI;
 
-		//	ROS_INFO("Odo %.3f %.3f %2f",x, y, theta);
+			ROS_INFO("Odo %.3f %.3f %2f",x, y, theta);
 
    			//since all odometry is 6DOF we'll need a quaternion created from yaw
 			geometry_msgs::Quaternion odom_quat = tf::createQuaternionMsgFromYaw(theta);
