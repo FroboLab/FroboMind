@@ -1,0 +1,38 @@
+<launch>
+	<param name="robot_max_velocity" value="3.0"/>
+	<param name="diff_steer_wheel_radius" value="0.051"/>
+	<param name="diff_steer_wheel_ticks_per_rev" value="180"/>
+	<param name="diff_steer_wheel_distance" value="0.215"/>
+
+ 	<node pkg="stage" type="stageros" name="simulator" args="$(find sdu_frobit_remote_map)/world/frobit.world"/>	
+	<node name="rviz" pkg="rviz" type="rviz" respawn="false" output="screen" args=""/>
+	<node pkg="twist_stamped_to_twist" name="converter" type="cmd_vel_converter.py"/>
+
+	<group ns="fmProcessors">
+		<node pkg="gmapping" name="slam_gmapping" type="slam_gmapping" output="screen" >
+ 			<remap from="scan" to="/base_scan"/>
+			<param name="odom_frame" value="odom"/>
+		</node>
+	</group>
+
+	<group ns="fmDecisionMakers">
+		<node pkg="sdu_frobit_remote_map" name="frobit_remote" type="remote.py" output="screen">
+    		<param name="deadman_topic" value="/fmSignals/deadman" />
+			<param name="cmd_vel_topic" value="/fmSignals/cmd_vel" />
+			<param name="max_linear_velocity" value="1.5"/>
+			<param name="max_angular_velocity" value="1.8"/>
+			<param name="deadband" value="5"/>
+			<param name="reduced_range" value="40"/>
+			<param name="feedback_topic" value="/fmLib/joy/set_feedback" />
+			<param name="joy_topic" value="/fmLib/joy" />
+			<param name="status_topic" value="/fmData/status"/>
+			<param name="publish_frequency" value="10"/>
+		</node>
+	</group>
+
+	<group ns="fmLib">
+       	<node pkg="wiimote" type="wiimote_node.py" name="remote_control" respawn="true"/>	
+	</group>
+	
+	
+</launch>

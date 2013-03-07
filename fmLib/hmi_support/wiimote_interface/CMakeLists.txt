@@ -80,10 +80,10 @@ catkin_package(
 
 ## Mark executable scripts (Python etc.) for installation
 ## not required for python when using catkin_python_setup()
- install(PROGRAMS
-   scripts/wii_interface
-   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
- )
+# install(PROGRAMS
+#   src/wii_interface
+#   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+# )
 
 ## Mark executables and/or libraries for installation
 # install(TARGETS wiimote_interface wiimote_interface_node

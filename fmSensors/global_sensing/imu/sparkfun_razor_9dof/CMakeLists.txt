@@ -61,18 +61,18 @@ include_directories(include
 )
 
 ## Declare a cpp library
-# add_library(sparkfun_9DOF
-#   src/${PROJECT_NAME}/sparkfun_9DOF.cpp
+# add_library(sparkfun_9dof
+#   src/${PROJECT_NAME}/sparkfun_9dof.cpp
 # )
 
 ## Declare a cpp executable
-add_executable(sparkfun_9DOF_node src/sparkfun_9DOF_node.cpp src/SparkFun9DOF.cpp)
+add_executable(sparkfun_9dof_node src/sparkfun_9dof_node.cpp src/sparkfun_9dof.cpp)
 
 ## Add dependencies to the executable
-add_dependencies(sparkfun_9DOF_node ${PROJECT_NAME})
+add_dependencies(sparkfun_9dof_node ${PROJECT_NAME})
 
 ## Specify libraries to link a library or executable target against
-target_link_libraries(sparkfun_9DOF_node
+target_link_libraries(sparkfun_9dof_node
    ${catkin_LIBRARIES}
  )
 

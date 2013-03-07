@@ -1,0 +1,55 @@
+<launch>
+	<group ns="fmLib">
+		<node pkg="serial_string" type="serial_string_node" name="serial_comm_left">
+			<param name="publisher_topic" value="serial_comm_left_rx" />
+			<param name="subscriber_topic" value="serial_comm_left_tx" />
+			<param name="device" value="/dev/ttyUSB2" />
+			<param name="baudrate" value="115200" />
+			<param name="termination_character" value="13" />
+		</node>
+
+		<node pkg="serial_string" type="serial_string_node" name="serial_comm_right">
+			<param name="publisher_topic" value="serial_comm_right_rx" />
+			<param name="subscriber_topic" value="serial_comm_right_tx" />
+			<param name="device" value="/dev/ttyUSB1" />
+			<param name="baudrate" value="115200" />
+			<param name="termination_character" value="13" />
+		</node>
+	</group>
+	
+	<group ns="fmControllers">
+		<node pkg="sdu_armadillo_roboteq" type="roboteq_node" name="roboteq_left">
+			<param name="cmd_vel_topic" value="/fmControllers/cmd_vel_left" />
+			<param name="serial_rx_topic" value="/fmLib/serial_comm_left_rx" />
+			<param name="serial_tx_topic" value="/fmLib/serial_comm_left_tx" />
+			<param name="deadman_joy_topic" value="/fmHMI/joy" />
+			<param name="encoder_topic" value="/fmSensors/encoder_left" />
+			<param name="status_topic" value="/fmActuators/status_left" />
+			<param name="max_time_diff" value="1" />
+			<param name="deadman_joy_button_index" value="3" />
+			<param name="deadman_joy_max_missing" value="30" />
+		</node>
+
+		<node pkg="sdu_armadillo_roboteq" type="roboteq_node" name="roboteq_right">
+			<param name="cmd_vel_topic" value="/fmControllers/cmd_vel_right" />
+			<param name="serial_rx_topic" value="/fmLib/serial_comm_right_rx" />
+			<param name="serial_tx_topic" value="/fmLib/serial_comm_right_tx" />
+			<param name="deadman_joy_topic" value="/fmHMI/joy" />
+			<param name="encoder_topic" value="/fmSensors/encoder_right" />
+			<param name="status_topic" value="/fmActuators/status_right" />
+			<param name="max_time_diff" value="1" />
+			<param name="deadman_joy_button_index" value="3" />
+			<param name="deadman_joy_max_missing" value="30" />
+		</node>
+
+		<node pkg="differential_ifk" type="differential_ifk_node" name="differential_ifk">
+			<param name="hl_subscriber_topic" value="/fmSignals/cmd_vel" />
+			<param name="ll_publisher_topic_left" value="/fmControllers/cmd_vel_left" />
+			<param name="ll_publisher_topic_right" value="/fmControllers/cmd_vel_right" />
+			<param name="distance_center_to_wheel" value="1.10" />
+			
+			<param name="deadmanbutton_topic" value="/fmHMI/joy" />
+		</node>
+	</group>
+
+</launch>

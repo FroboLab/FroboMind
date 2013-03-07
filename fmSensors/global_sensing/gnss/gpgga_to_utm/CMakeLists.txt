@@ -46,7 +46,7 @@ find_package(catkin REQUIRED COMPONENTS msgs roscpp gps_conversions_lib)
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
    INCLUDE_DIRS include
-#  LIBRARIES gpgga_to_utm
+  LIBRARIES gps_conversions_lib
 #  CATKIN_DEPENDS msgs roscpp
 #  DEPENDS system_lib
 )

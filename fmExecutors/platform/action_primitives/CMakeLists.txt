@@ -4,14 +4,15 @@ project(action_primitives)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED COMPONENTS actionlib actionlib_msgs dynamic_reconfigure msgs nav_msgs rospy tf visualization_msgs)
+#find_package(catkin REQUIRED COMPONENTS actionlib actionlib_msgs dynamic_reconfigure msgs nav_msgs rospy tf visualization_msgs)
+find_package(catkin REQUIRED COMPONENTS msgs rospy)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and scripts declared therein get installed
-# catkin_python_setup()
+ catkin_python_setup()
 
 #######################################
 ## Declare ROS messages and services ##

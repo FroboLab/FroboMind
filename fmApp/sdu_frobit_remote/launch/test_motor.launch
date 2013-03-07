@@ -1,0 +1,22 @@
+<launch>
+    <group ns="fmLib">
+        <node pkg="serial_nmea" name="nmea_node" type="nmea_node" output="screen">
+            <param name="str_to_msg_sub" value="/fmLib/frobit_rx" />   
+            <param name="str_to_msg_pub" value="/fmLib/nmea_from_frobit" />
+            <param name="msg_to_str_sub" value="/fmLib/nmea_to_frobit" />   
+            <param name="msg_to_str_pub" value="/fmLib/frobit_tx" />           
+            <param name="use_nmea_checksum" type="boolean" value="true" />
+        </node>
+
+	<node pkg="serial_string" name="serial_string_node" type="serial_string_node" output="screen" >
+        	<param name="publisher_topic" value="/fmLib/frobit_rx" />	 
+        	<param name="subscriber_topic" value="/fmLib/frobit_tx" />
+		<param name="device" value="/dev/ttyUSB0" />	
+		<param name="baudrate" value="57600" />
+		<param name="termination_character" value="10"/>
+	</node>
+
+        <node pkg="sdu_frobit" name="frobit_test_motor" type="frobit_test_motor.py" output="screen">
+        </node>
+    </group>
+</launch>

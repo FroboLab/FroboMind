@@ -1,0 +1,4 @@
+<launch>	
+	<node pkg="sdu_pichi" type="test.py" name="tester" output="screen"/>
+	<node pkg="sdu_pichi" type="sdu_pichi_node" name="roboteq"/>
+</launch>

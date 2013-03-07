@@ -1,0 +1,22 @@
+<launch>
+	<include file="$(find sdu_armadillo_3)/launch/base.launch"/>	
+
+	<group ns="fmDecisionMakers">
+    	<node pkg="sdu_armadillo3_remote" type="remote.py" name="remote" output="screen">
+    		<param name="deadman_topic" value="/fmSignals/deadman" />
+			<param name="cmd_vel_topic" value="/fmSignals/cmd_vel" />
+			<param name="max_linear_velocity" value="0.1"/>
+			<param name="max_angular_velocity" value="0.2"/>
+			<param name="deadband" value="1"/>
+			<param name="reduced_range" value="40"/>
+			<param name="feedback_topic" value="/fmHMI/joy/set_feedback" />
+			<param name="joy_topic" value="/fmHMI/joy" />
+			<param name="status_topic" value="/fmData/status"/>
+			<param name="publish_frequency" value="10"/>
+		</node>
+	</group>
+   
+    <group ns="fmHMI">
+        <node pkg="wiimote" type="wiimote_node.py" name="remote_control" respawn="true" />
+	</group>
+</launch>

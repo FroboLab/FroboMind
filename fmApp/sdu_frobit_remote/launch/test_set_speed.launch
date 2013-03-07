@@ -1,0 +1,57 @@
+<launch>
+	<param name="robot_max_velocity" value="0.50"/>
+	<param name="diff_steer_wheel_radius" value="0.051"/>
+	<param name="diff_steer_wheel_ticks_per_rev" value="180"/>
+	<param name="diff_steer_wheel_distance" value="0.215"/>
+
+	<group ns="fmProcessors">
+		<node pkg="encoder_to_odom" name="encoder_odom" type="encoder_odom_node" output="screen" >
+			<param name="enc_left_sub" value="/fmInformation/encoder_left" />
+			<param name="enc_right_sub" value="/fmInformation/encoder_right" />
+			<param name="odom_pub" value="/fmKnowledge/odom" />
+			<param name="vehicle_frame" value="base_footprint"></param>      
+			<param name="odom_estimate_frame" value="odom_combined"></param>      
+			<param name="max_time_diff" value="1"></param>      
+		</node>
+	</group>
+
+	<group ns="transforms">
+		<node pkg="tf" type="static_transform_publisher" name="base_link_broadcaster" args="0 0 0 0 0 0 base_footprint base_link 100"/>
+	</group>
+
+	<group ns="fmLib">
+   		<node pkg="sdu_frobit" type="frobit_test_set_speed.py" name="frobit_test_set_speed" respawn="true">
+		</node>
+
+		<node pkg="sdu_frobit" name="frobit_node" type="frobit_node" output="screen" >
+			<param name="cmd_vel_left_sub" value="/fmSignals/cmd_vel_left"/>
+			<param name="cmd_vel_right_sub" value="/fmSignals/cmd_vel_right"/>
+			<param name="deadman_sub" value="/fmSignals/deadman"/>
+			<param name="nmea_sub" value="/fmData/nmea_from_frobit"/>
+			<param name="nmea_pub" value="/fmData/nmea_to_frobit"/>
+			<param name="encoder_left_pub" value="/fmInformation/encoder_left"/>
+			<param name="encoder_right_pub" value="/fmInformation/encoder_right"/>
+			<param name="castor_front" value="true"/>
+			<param name="nmea_to_frobit_interval" value="0.1"/>          
+			<param name="cmd_vel_timeout" value="1"/>          
+       		</node>
+
+		<node pkg="serial_nmea" name="nmea_node" type="nmea_node" output="screen">
+		    <param name="str_to_msg_sub" value="/fmData/frobit_rx" />   
+		    <param name="str_to_msg_pub" value="/fmData/nmea_from_frobit" />
+		    <param name="msg_to_str_sub" value="/fmData/nmea_to_frobit" />   
+		    <param name="msg_to_str_pub" value="/fmData/frobit_tx" />           
+		    <param name="use_nmea_checksum" type="boolean" value="true" />
+		</node>
+
+		<node pkg="serial_string" name="serial_string_node" type="serial_string_node" output="screen" >
+			<param name="publisher_topic" value="/fmData/frobit_rx" />	 
+			<param name="subscriber_topic" value="/fmData/frobit_tx" />
+			<param name="device" value="/dev/ttyUSB0" />	
+			<param name="baudrate" value="57600" />
+			<param name="termination_character" value="10"/>
+		</node> 	
+	</group>
+	
+	
+</launch>

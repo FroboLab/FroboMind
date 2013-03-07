@@ -230,14 +230,14 @@ int main(int argc, char **argv)
 
   double cov_x,cov_y,cov_z;
 
-  nh.param<std::string> ("subscribe_topic_id", subscribe_topic_id, "fmCSP/com1_rx");
-  nh.param<std::string> ("publish_topic_id", publish_topic_id, "imu_msg");
-  nh.param<std::string> ("frame_id", imu.frame_id, "base_link");
+  nh.param<std::string> ("vectornav_vn100_sub", subscribe_topic_id, "/fmData/imu_rx");
+  nh.param<std::string> ("imu_pub", publish_topic_id, "/fmInformation/imu");
+  nh.param<std::string> ("frame_id", imu.frame_id, "imu_link");
   nh.param<bool>("use_enu",imu.enu_selected,false);
 
-  nh.param<double> ("cov_x",cov_x,1.0);
-  nh.param<double> ("cov_y",cov_y,1.0);
-  nh.param<double> ("cov_z",cov_z,1.0);
+  nh.param<double> ("covariance_x",cov_x,1.0);
+  nh.param<double> ("covariance_y",cov_y,1.0);
+  nh.param<double> ("covariance_z",cov_z,1.0);
 
   imu.set_covariance(cov_x,cov_y,cov_z);
 

@@ -1,4 +1,30 @@
-#!/usr/bin/env python
+#/****************************************************************************
+# FroboMind wii_interface.py
+# Copyright (c) 2011-2013, author Leon Bonde Larsen <leon@bondelarsen.dk>
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#    * Redistributions of source code must retain the above copyright
+#      notice, this list of conditions and the following disclaimer.
+#    * Redistributions in binary form must reproduce the above copyright
+#      notice, this list of conditions and the following disclaimer in the
+#      documentation and/or other materials provided with the distribution.
+#    * Neither the name FroboMind nor the
+#      names of its contributors may be used to endorse or promote products
+#      derived from this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL <COPYRIGHT HOLDER> BE LIABLE FOR ANY
+# DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+# ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#****************************************************************************/
 import rospy
 import math
 from msgs.msg import StringStamped
@@ -37,9 +63,12 @@ class WiiInterface():
                                            JoyFeedback( type=JoyFeedback.TYPE_RUMBLE, intensity=0, id=0 )] ) 
 
         # Get parameters
+        self.reduced_range = rospy.get_param("~reduced_range",50) # Given in percent
+        self.reduced_range = self.reduced_range / 100.0 # Convert to ratio
+        self.deadband = rospy.get_param("~deadband",5) # Given in percent
+        self.deadband = self.deadband / 100.0 # Convert to ratio
         self.max_linear_velocity = rospy.get_param("~max_linear_velocity",2)
         self.max_angular_velocity = rospy.get_param("~max_angular_velocity",1)
-        self.deadband = rospy.get_param("~deadband",0.1)
         self.publish_frequency = rospy.get_param("~publish_frequency",5)    
         
         # Get topic names
@@ -90,20 +119,34 @@ class WiiInterface():
                         
     def publishCmdVel(self): 
         """
-            Method to average filter and publish twist from wiimote input
+            Method to average and publish twist from wiimote input
         """
         # Calculate average of the ten latest messages
-        self.linear = (sum(self.pitch)/len(self.pitch) * self.max_linear_velocity)
-        self.angular = -(sum(self.roll)/len(self.roll) * self.max_angular_velocity)
+        self.linear = (sum(self.pitch)/len(self.pitch))
+        self.angular = -(sum(self.roll)/len(self.roll))      
         
-        # Implement deadband
+        # Implement deadband on linear velocity
+        if self.linear < self.deadband and self.linear > -self.deadband :
+            self.linear = 0;
+            
+        # Implement deadband on angular velocity
         if self.angular < self.deadband and self.angular > -self.deadband :
             self.angular = 0;
-        elif self.angular < 0 :
-            self.angular = self.angular + self.deadband
-        elif self.angular > 0 :
-            self.angular = self.angular - self.deadband 
         
+        # Implement reduced range on linear velocity    
+        if self.linear > self.reduced_range :
+            self.linear = self.reduced_range
+        elif self.linear < - self.reduced_range :
+            self.linear = - self.reduced_range
+        self.linear = ( self.linear / self.reduced_range ) * self.max_linear_velocity
+        
+        # Implement reduced range on angular velocity
+        if self.angular > self.reduced_range :
+            self.angular = self.reduced_range
+        elif self.angular < - self.reduced_range :
+            self.angular = - self.reduced_range
+        self.angular = ( self.angular / self.reduced_range ) * self.max_angular_velocity
+
         # Publish twist message                   
         self.twist.header.stamp = rospy.Time.now()
         self.twist.twist.linear.x = self.linear
@@ -137,48 +180,3 @@ class WiiInterface():
         # Publish feedback message            
         self.fb_pub.publish(self.fb)   
     
-     
-class remoteControlState(smach.State):
-    """
-        Implements remote controlled operation as a smach state
-        Usage example:
-            smach.StateMachine.add('REMOTE_CONTROL', remoteControlState(self.hmi), transitions={'enterAutomode':'AUTO_MODE'})
-    """
-    def __init__(self,hmi):
-        smach.State.__init__(self, outcomes=['enterAutomode','preempted'])
-        # Instantiate HMI
-        self.hmi = hmi
-
-    def execute(self, userdata):
-        self.r = rospy.Rate(self.hmi.publish_frequency)
-        while not self.hmi.automode and not rospy.is_shutdown():
-            # Publish topics
-            self.hmi.publishDeadman()
-            self.hmi.publishFeedback()
-            self.hmi.publishCmdVel()
-            # Spin
-            self.r.sleep()
-        return 'enterAutomode'
-        
-class interfaceState(smach.State):
-    """
-        Implements HMI as smach state to be used in concurrence with autonomous behaviours
-        Usage example:
-            smach.Concurrence.add('HMI', interfaceState(self.hmi))
-    """
-    def __init__(self,hmi):
-        smach.State.__init__(self, outcomes=['succeeded','preempted'])
-        # Instantiate HMI
-        self.hmi = hmi
-        self.r = rospy.Rate(self.hmi.publish_frequency)
-        
-    def execute(self, userdata):
-        while not rospy.is_shutdown():         
-            if self.hmi.automode :
-                # Publish topics
-                self.hmi.publishDeadman()
-                self.hmi.publishFeedback()
-                self.r.sleep()
-            else :
-                break
-        return 'preempted'

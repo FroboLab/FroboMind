@@ -36,7 +36,7 @@ add_action_files(DIRECTORY action FILES position.action)
 ## Generate added messages and services with any dependencies listed here
  generate_messages(
    DEPENDENCIES
-   actionlib_msgs   nav_msgs std_msgs
+   actionlib_msgs nav_msgs std_msgs
  )
 
 ###################################################
@@ -50,7 +50,6 @@ catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES position_action_server
 # CATKIN_DEPENDS actionlib actionlib_msgs
-
 #  DEPENDS system_lib
 )
 

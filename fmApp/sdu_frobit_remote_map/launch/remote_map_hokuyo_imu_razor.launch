@@ -1,0 +1,134 @@
+<launch>
+	<param name="robot_max_velocity" value="1.0"/>
+	<param name="diff_steer_wheel_radius" value="0.051"/>
+	<param name="diff_steer_wheel_ticks_per_rev" value="180"/>
+	<param name="diff_steer_wheel_distance" value="0.215"/>
+
+	<node name="rviz" pkg="rviz" type="rviz" respawn="false" output="screen" args=""/>
+
+	<group ns="fmSensors">
+		<node pkg="sparkfun_razor_9dof" name="imu_node"  type="sparkfun_9dof_node" output="screen" >
+			<param name="nmea_from_imu_sub" value="/fmData/nmea_from_imu"/>
+			<param name="imu_pub" value="/fmInformation/imu"/>
+			<param name="magnetometer_pub" value="/fmInformation/magnetometer"/>
+			<param name="publish_imu" value="true"/>
+			<param name="publish_magnetometer" value="true"/>
+			<param name="use_enu" value="true"/>
+			<param name="frame_id" value="imu_link"/>
+		 </node>
+
+		<param name="use_rep_117" value="true"/>
+		<node name="hokuyo" pkg="hokuyo_node" type="hokuyo_node" output="screen" >
+			<param name="port" value="/dev/ttyACM0"/>
+			<param name="frame_id" type="string" value="/laser_link"/> 
+			<param name="calibrate_time" value="true"/>
+			<remap from="scan" to="/fmSensors/laser_msg"/>
+			<!-- min_ang and max_ang are set to minimum values -->
+			<!-- <param name="min_ang" type="double" value="-2.086214" /> -->
+			<!-- <param name="max_ang" type="double" value="2.092350" /> -->
+			<!-- <param name="skip" type="int" value="0" /> -->
+			<!-- <param name="cluster" type="int" value="1" /> -->
+			<!-- <param name="intensity" value="false" /> -->
+		 </node>
+	</group>
+
+	<group ns="fmProcessors">
+		<node pkg="gmapping" name="slam_gmapping" type="slam_gmapping" output="screen" >
+ 			<remap from="scan" to="/fmSensors/laser_msg"/>
+			<param name="odom_frame" value="odom_combined"/>
+		</node>
+
+		<node pkg="encoder_and_imu_to_odom" name="encoder_imu_odom" type="encoder_imu_odom_node" output="screen" >
+			<param name="enc_left_sub" value="/fmInformation/encoder_left" />
+			<param name="enc_right_sub" value="/fmInformation/encoder_right" />
+			<param name="imu_sub" value="/fmInformation/imu" />
+			<param name="odom_pub" value="/fmKnowledge/odom" />
+			<param name="vehicle_frame" value="base_footprint"></param>      
+			<param name="odom_estimate_frame" value="odom_combined"></param>      
+			<param name="yaw_angle_source" value="angular_velocity"></param> <!-- odometry/imu_angular_velocity/imu_orientation -->  
+			<param name="imu_yaw_axis" value="z"></param> <!-- x/y/z -->  
+			<param name="enc_max_time_diff" value="1"></param>      
+		</node>
+	</group>
+
+	<group ns="fmDecisionMakers">
+		<node pkg="sdu_frobit_remote_map" name="frobit_remote" type="remote.py" output="screen">
+    			<param name="deadman_topic" value="/fmSignals/deadman" />
+			<param name="cmd_vel_topic" value="/fmSignals/cmd_vel" />
+			<param name="max_linear_velocity" value="1.5"/>
+			<param name="max_angular_velocity" value="1.8"/>
+			<param name="deadband" value="0.001"/>
+			<param name="feedback_topic" value="/fmLib/joy/set_feedback" />
+			<param name="joy_topic" value="/fmLib/joy" />
+			<param name="status_topic" value="/fmData/status"/>
+			<param name="publish_frequency" value="10"/>
+		</node>
+	</group>
+
+	<group ns="fmControllers">
+		<node pkg="differential_ifk" name="diff" type="differential_ifk_node" output="screen" >
+			<param name="hl_subscriber_topic" value="/fmSignals/cmd_vel"/>
+			<param name="ll_publisher_topic_left" value="/fmSignals/cmd_vel_left"/>
+			<param name="ll_publisher_topic_right" value="/fmSignals/cmd_vel_right"/>
+			<param name="distance_center_to_wheel" value="0.1075" />
+		</node>
+	</group>
+
+	<group ns="transforms">
+		<node pkg="tf" type="static_transform_publisher" name="base_link_broadcaster" args="0 0 0 0 0 0 base_footprint base_link 100"/>
+		<node pkg="tf" type="static_transform_publisher" name="imu_link_broadcaster" args="0 0 0 0 0 0 base_link imu_link 100"/>
+		<node pkg="tf" type="static_transform_publisher" name="laser_link_broadcaster" args="0.1 0 0.1 0 0 0 base_footprint laser_link 100"/>
+	</group>
+
+	<group ns="fmLib">
+		<node pkg="sdu_frobit" name="frobit_node" type="frobit_node" output="screen" >
+			<param name="cmd_vel_left_sub" value="/fmSignals/cmd_vel_left"/>
+			<param name="cmd_vel_right_sub" value="/fmSignals/cmd_vel_right"/>
+			<param name="deadman_sub" value="/fmSignals/deadman"/>
+			<param name="nmea_sub" value="/fmData/nmea_from_frobit"/>
+			<param name="nmea_pub" value="/fmData/nmea_to_frobit"/>
+			<param name="encoder_left_pub" value="/fmInformation/encoder_left"/>
+			<param name="encoder_right_pub" value="/fmInformation/encoder_right"/>	
+			<param name="castor_front" value="true"/>
+			<param name="nmea_to_frobit_interval" value="0.1"/>          
+			<param name="cmd_vel_timeout" value="1"/>          
+        	</node>
+
+        	<node pkg="wiimote" type="wiimote_node.py" name="remote_control" respawn="true">
+		</node>
+
+		<node pkg="serial_nmea" name="imu_nmea_node" type="nmea_node" output="screen">
+			<param name="str_to_msg_sub" value="/fmData/imu_rx" />   
+			<param name="str_to_msg_pub" value="/fmData/nmea_from_imu" />
+			<param name="msg_to_str_sub" value="/fmData/nmea_to_imu" />   
+			<param name="msg_to_str_pub" value="/fmData/imu_tx" />           
+			<!-- <param name="use_nmea_checksum" value="true" /> -->
+		</node>
+
+		<node pkg="serial_nmea" name="frobit_nmea_node" type="nmea_node" output="screen">
+			<param name="str_to_msg_sub" value="/fmData/frobit_rx" />   
+			<param name="str_to_msg_pub" value="/fmData/nmea_from_frobit" />
+			<param name="msg_to_str_sub" value="/fmData/nmea_to_frobit" />   
+			<param name="msg_to_str_pub" value="/fmData/frobit_tx" />           
+			<param name="use_nmea_checksum" value="true" />
+		</node>
+
+		<node pkg="serial_string" name="imu_serial_string_node" type="serial_string_node" output="screen" >
+			<param name="publisher_topic" value="/fmData/imu_rx" />	 
+			<param name="subscriber_topic" value="/fmData/imu_tx" />
+			<param name="device" value="/dev/ttyUSB1" />	
+			<param name="baudrate" value="57600" />
+			<param name="termination_character" value="10"/>
+		</node> 	
+
+		<node pkg="serial_string" name="frobit_serial_string_node" type="serial_string_node" output="screen" >
+			<param name="publisher_topic" value="/fmData/frobit_rx" />	 
+			<param name="subscriber_topic" value="/fmData/frobit_tx" />
+			<param name="device" value="/dev/ttyUSB0" />	
+			<param name="baudrate" value="57600" />
+			<param name="termination_character" value="10"/>
+		</node> 	
+	</group>
+	
+	
+</launch>

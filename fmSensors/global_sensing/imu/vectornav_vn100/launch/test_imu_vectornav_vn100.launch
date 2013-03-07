@@ -1,0 +1,30 @@
+<launch>
+	<node name="rviz" pkg="rviz" type="rviz" respawn="false" output="screen" args=""/>
+
+	<group ns="transforms">
+		<node pkg="tf" type="static_transform_publisher" name="base_link_broadcaster" args="0 0 0 0 0 0 base_footprint base_link 100"/>
+		<node pkg="tf" type="static_transform_publisher" name="imu_link_broadcaster" args="0.0 0 0.0 0 0 0 base_footprint imu_link 100"/>
+	</group>
+
+	<group ns="fmSensors">
+		<node pkg="vectornav_vn100" name="imu_node"  type="vectornav_vn100_node" output="screen" >
+			<param name="vectornav_vn100_sub" value="/fmData/imu_rx"/>
+			<param name="imu_pub" value="/fmInformation/imu"/>
+			<param name="frame_id" value="imu_link"/>
+			<param name="use_enu" value="true"/>
+			<param name="covariance_x" value="0.001"/>
+			<param name="covariance_y" value="0.001"/>
+			<param name="covariance_z" value="0.001"/>
+		 </node>
+	</group>
+
+	<group ns="fmLib">
+		<node pkg="serial_string" name="imu_serial_string_node" type="serial_string_node" output="screen" >
+			<param name="publisher_topic" value="/fmData/imu_rx" />	 
+			<param name="subscriber_topic" value="/fmData/imu_tx" />
+			<param name="device" value="/dev/ttyUSB0" />	
+			<param name="baudrate" value="115200" />
+			<param name="termination_character" value="10"/>
+		</node> 	
+	</group>
+</launch>

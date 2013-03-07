@@ -1,0 +1,76 @@
+<launch>
+	<param name="robot_max_velocity" value="1.0"/>
+	<param name="diff_steer_wheel_radius" value="0.051"/>
+	<param name="diff_steer_wheel_ticks_per_rev" value="180"/>
+	<param name="diff_steer_wheel_distance" value="0.215"/>
+	
+	<node pkg="rviz" type="rviz" name="visualization" args="$(find sdu_pichi_surveyor)/conf/default.rviz"/>
+	<node pkg="smach_viewer" name="stateMachine_viewer" type="smach_viewer.py"/>
+	<node pkg="position_action_server" name="positionActionServer" type="positionGoalActionServer.py"/>
+
+	<node pkg="indoor_tracker" type="tracker_node.py" name="tracker"/>
+	<remap from="/positionPublisher7" to="/base_pose_ground_truth"/>
+
+	<group ns="fmDecisionMakers">
+		<node pkg="sdu_frobit_tracker" name="frobit" type="remote.py" output="screen">
+    		<param name="deadman_topic" value="/fmSignals/deadman" />
+			<param name="cmd_vel_topic" value="/fmSignals/cmd_vel" />
+			<param name="max_linear_velocity" value="1.5"/>
+			<param name="max_angular_velocity" value="1.8"/>
+			<param name="deadband" value="5"/>
+			<param name="reduced_range" value="40"/>
+			<param name="feedback_topic" value="/fmLib/joy/set_feedback" />
+			<param name="joy_topic" value="/fmLib/joy" />
+			<param name="status_topic" value="/fmData/status"/>
+			<param name="publish_frequency" value="10"/>
+		</node>
+	</group>
+
+	<group ns="fmControllers">
+		<node pkg="differential_ifk" name="diff" type="differential_ifk_node" output="screen" >
+			<param name="hl_subscriber_topic" value="/fmSignals/cmd_vel"/>
+			<param name="ll_publisher_topic_left" value="/fmSignals/cmd_vel_left"/>
+			<param name="ll_publisher_topic_right" value="/fmSignals/cmd_vel_right"/>
+			<param name="distance_center_to_wheel" value="0.1075" />
+		</node>
+	</group>
+
+	<group ns="transforms">
+		<node pkg="tf" type="static_transform_publisher" name="base_link_broadcaster" args="0 0 0 0 0 0 base_footprint base_link 100"/>
+	</group>
+
+	<group ns="fmLib">
+		<node pkg="sdu_frobit" name="frobit_node" type="frobit_node" output="screen" >
+			<param name="cmd_vel_left_sub" value="/fmSignals/cmd_vel_left"/>
+			<param name="cmd_vel_right_sub" value="/fmSignals/cmd_vel_right"/>
+			<param name="deadman_sub" value="/fmSignals/deadman"/>
+			<param name="nmea_sub" value="/fmData/nmea_from_frobit"/>
+			<param name="nmea_pub" value="/fmData/nmea_to_frobit"/>
+			<param name="encoder_left_pub" value="/fmInformation/encoder_left"/>
+			<param name="encoder_right_pub" value="/fmInformation/encoder_right"/>	
+			<param name="castor_front" value="true"/>
+			<param name="nmea_to_frobit_interval" value="0.1"/>          
+			<param name="cmd_vel_timeout" value="1"/>          
+        	</node>
+
+        	<node pkg="wiimote" type="wiimote_node.py" name="remote_control" respawn="true">
+		</node>
+
+		<node pkg="serial_nmea" name="nmea_node" type="nmea_node" output="screen">
+		    <param name="str_to_msg_sub" value="/fmData/frobit_rx" />   
+		    <param name="str_to_msg_pub" value="/fmData/nmea_from_frobit" />
+		    <param name="msg_to_str_sub" value="/fmData/nmea_to_frobit" />   
+		    <param name="msg_to_str_pub" value="/fmData/frobit_tx" />           
+		    <param name="use_nmea_checksum" type="boolean" value="true" />
+		</node>
+
+		<node pkg="serial_string" name="serial_string_node" type="serial_string_node" output="screen" >
+			<param name="publisher_topic" value="/fmData/frobit_rx" />	 
+			<param name="subscriber_topic" value="/fmData/frobit_tx" />
+			<param name="device" value="/dev/ttyUSB0" />	
+			<param name="baudrate" value="57600" />
+			<param name="termination_character" value="10"/>
+		</node> 	
+	</group>
+
+</launch>

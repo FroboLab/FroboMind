@@ -1,0 +1,76 @@
+name            "World"
+interval_sim    100
+resolution      0.1
+threads         4
+
+window
+( 
+   size [ 500 900 ] 
+   rotate [ 0 0 ]
+   scale 10 
+)
+
+define bounds model
+(
+   color "gray30"
+   boundary 1
+   laser_return 1
+   obstacle_return 1
+   gui_move 0
+)
+
+define obstacles model
+(
+   size [55 95 1]
+   bitmap "smiley.pgm"
+   color "red"
+   laser_return 1
+   gui_move 0
+)
+
+define laser_scanner ranger
+(
+   sensor
+   ( 		
+      range [ 0.0  3 ]
+      fov 180
+      samples 90
+   )
+)
+
+position
+(
+   pose [ 0 0 0 0 ]
+   size [ 0.4 0.3 0.15 ] 
+   name "Frobit" 
+   color "blue"
+   drive "diff"
+   gui_nose 1
+   scount 2
+   laser_scanner(pose [ 0 0 0 0 ])
+   obstacle_return 1
+
+   polygons 1
+   block( 
+      points 4
+      point[0] [0 0]
+      point[1] [0 4]
+      point[2] [1 4]
+      point[3] [1 0]
+      z [0 0.5]
+   )
+)
+
+bounds
+(
+   name "bounds"
+   bitmap "empty.pgm"
+   size [ 55 95 1]
+   pose [ 0 0 0 0 ]
+)
+
+obstacles
+(
+   name "obstacles"
+   pose [ 0 0 0 0 ]
+)

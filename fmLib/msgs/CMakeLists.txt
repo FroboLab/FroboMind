@@ -20,7 +20,6 @@ find_package(catkin REQUIRED COMPONENTS message_generation roscpp rospy std_msgs
 ## Generate messages in the 'msg' folder
  add_message_files(
    FILES
-	accelerometer.msg
 	adc.msg
 	can.msg
 	claas_row_cam.msg
@@ -28,7 +27,6 @@ find_package(catkin REQUIRED COMPONENTS message_generation roscpp rospy std_msgs
 	engine_rpm.msg
 	gpgga.msg
 	gpgga_utm.msg
-	gyroscope.msg
 	IntStamped.msg
 	lidar_safety_zone.msg
 	magnetometer.msg
