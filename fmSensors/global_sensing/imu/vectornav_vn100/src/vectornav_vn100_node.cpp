@@ -35,6 +35,9 @@
 #include <boost/tokenizer.hpp>
 #include <boost/lexical_cast.hpp>
 
+// defines
+#define IDENT "vectornav_vn100_node"
+
 typedef boost::tokenizer<boost::char_separator<char> > tokenizer;
 
 class VectorNav
@@ -102,13 +105,10 @@ private:
 					imu_msg.header.stamp = ros::Time::now();
 					imu_msg.header.frame_id = frame_id;
 
-
 					if(enu_selected)
 					{
 						// ENU ORIENTATION
-						/* swap x and y and negate z
-						 *
-						 * */
+						// swap x and y and negate z
 						imu_msg.orientation.y = boost::lexical_cast<float>(*tok_iter++);
 						imu_msg.orientation.x = boost::lexical_cast<float>(*tok_iter++);
 						imu_msg.orientation.z = - boost::lexical_cast<float>(*tok_iter++);
@@ -126,7 +126,7 @@ private:
 						// angular rates swap  x y and negate z
 						imu_msg.angular_velocity.y = boost::lexical_cast<float>(*tok_iter++);
 						imu_msg.angular_velocity.x = boost::lexical_cast<float>(*tok_iter++);
-						imu_msg.angular_velocity.z = -boost::lexical_cast<float>(*tok_iter++);
+						imu_msg.angular_velocity.z = - boost::lexical_cast<float>(*tok_iter++);
 					}
 					else
 					{
@@ -233,7 +233,12 @@ int main(int argc, char **argv)
   nh.param<std::string> ("vectornav_vn100_sub", subscribe_topic_id, "/fmData/imu_rx");
   nh.param<std::string> ("imu_pub", publish_topic_id, "/fmInformation/imu");
   nh.param<std::string> ("frame_id", imu.frame_id, "imu_link");
-  nh.param<bool>("use_enu",imu.enu_selected,false);
+  nh.param<bool>("use_enu",imu.enu_selected,true);
+
+	if (imu.enu_selected == true)
+		ROS_INFO("%s Coordinate system: East, North, Up (ENU)", IDENT);
+	else
+		ROS_INFO("%s Coordinate system: North, East, Down (NED)", IDENT);
 
   nh.param<double> ("covariance_x",cov_x,1.0);
   nh.param<double> ("covariance_y",cov_y,1.0);

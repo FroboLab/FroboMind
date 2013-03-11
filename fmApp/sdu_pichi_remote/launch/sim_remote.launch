@@ -1,0 +1,27 @@
+<launch>
+ 	<node pkg="stage" type="stageros" name="simulator" args="$(find sdu_frobit_remote)/world/frobit.world"/>
+	<node pkg="rviz" type="rviz" name="visualization" args="$(find sdu_frobit_remote)/conf/default.rviz"/>
+	<node pkg="smach_viewer" name="stateMachine_viewer" type="smach_viewer.py"/>
+	<node pkg="twist_stamped_to_twist" name="converter" type="cmd_vel_converter.py"/>
+	<node pkg="position_action_server" name="positionActionServer" type="positionGoalActionServer.py"/>
+	
+
+	<group ns="fmHMI">
+		<node pkg="wiimote" type="wiimote_node.py" name="wiimote" respawn="true"/>
+    </group>
+    	
+	<group ns="fmDecisionMakers">
+		<node pkg="sdu_frobit_remote" name="frobit_remote" type="remote.py" output="screen">
+    		<param name="deadman_topic" value="/fmSignals/deadman" />
+			<param name="cmd_vel_topic" value="/fmSignals/cmd_vel" />
+			<param name="max_linear_velocity" value="1.5"/>
+			<param name="max_angular_velocity" value="1.8"/>
+			<param name="deadband" value="5"/>
+			<param name="reduced_range" value="40"/>
+			<param name="feedback_topic" value="/fmHMI/joy/set_feedback" />
+			<param name="joy_topic" value="/fmHMI/joy" />
+			<param name="status_topic" value="/fmData/status"/>
+			<param name="publish_frequency" value="5"/>
+		</node>
+	</group>
+</launch>

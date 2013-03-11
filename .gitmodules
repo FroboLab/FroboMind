@@ -1,0 +1,6 @@
+[submodule "joystick_drivers"]
+	path = joystick_drivers
+	url = git@github.com:FroboLab/joystick_drivers.git
+[submodule "executive_smach"]
+	path = executive_smach
+	url = git@github.com:FroboLab/executive_smach.git

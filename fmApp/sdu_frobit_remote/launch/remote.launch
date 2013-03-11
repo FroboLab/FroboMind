@@ -5,13 +5,15 @@
 	<param name="diff_steer_wheel_distance" value="0.215"/>
 
 	<group ns="fmProcessors">
-		<node pkg="encoder_to_odom" name="encoder_odom" type="encoder_odom_node" output="screen" >
+		<node pkg="differential_odometry" name="differential_odometry" type="differential_odometry_node" output="screen" >
 			<param name="enc_left_sub" value="/fmInformation/encoder_left" />
 			<param name="enc_right_sub" value="/fmInformation/encoder_right" />
+			<!-- <param name="imu_sub" value="/fmInformation/imu" /> -->
 			<param name="odom_pub" value="/fmKnowledge/odom" />
+			<param name="yaw_angle_source" value="odometry"></param>  
+			<!-- <param name="imu_angular_velocity_yaw_axis" value="z"></param> -->
 			<param name="vehicle_frame" value="base_footprint"></param>      
-			<param name="odom_estimate_frame" value="odom_combined"></param>      
-			<param name="max_time_diff" value="1"></param>      
+			<param name="odom_estimate_frame" value="/odom_combined"></param>      
 		</node>
 	</group>
 

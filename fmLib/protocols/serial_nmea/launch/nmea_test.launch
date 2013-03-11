@@ -1,0 +1,5 @@
+<launch>
+    <node pkg="serial_nmea" name="nmea_node" type="nmea_node" output="screen"/>
+    <node pkg="serial_nmea" name="nmea_tester" type="nmea_test_node.py" output="screen"/>
+
+</launch>

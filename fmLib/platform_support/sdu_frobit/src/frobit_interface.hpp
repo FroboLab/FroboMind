@@ -54,10 +54,8 @@
  *
  * @addtogroup Node
  * @{
- * Class for controlling the OmniRota
+ * Class for controlling the Frobit
  *
- * This class controls the wheels of the OmniRota given a commanded linear velocity and
- * a steering wheel angle.
  */
 class FrobitInterface
 {

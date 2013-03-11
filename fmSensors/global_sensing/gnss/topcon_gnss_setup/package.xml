@@ -1,27 +1,26 @@
 <?xml version="1.0"?>
 <package>
-  <name>encoder_to_odom</name>
-  <version>1.0.0</version>
-  <description>The encoder_to_odom package</description>
+  <name>topcon_gnss_setup</name>
+  <version>0.0.0</version>
+  <description>The topcon_g3 package</description>
 
   <!-- One maintainer tag required, multiple allowed, one person per tag --> 
   <!-- Example:  -->
   <!-- <maintainer email="jane.doe@example.com">Jane Doe</maintainer> -->
-  <maintainer email="frobolab@frobomind.org">Frobolab</maintainer>
+  <maintainer email="leon@todo.todo">leon</maintainer>
 
 
   <!-- One license tag required, multiple allowed, one license per tag -->
   <!-- Commonly used license strings: -->
   <!--   BSD, MIT, Boost Software License, GPLv2, GPLv3, LGPLv2.1, LGPLv3 -->
-  <license>BSD-3Clause</license>
+  <license>TODO</license>
 
 
   <!-- Url tags are optional, but mutiple are allowed, one per tag -->
   <!-- Optional attribute type can be: website, bugtracker, or repository -->
   <!-- Example: -->
-  <!-- <url type="website">http://ros.org/wiki/encoder_to_odom</url> -->
- <url type="website">http://frobomind.org</url>
-  <url type="repository">https://github.com/FroboLab/FroboMind</url>
+  <!-- <url type="website">http://ros.org/wiki/topcon_g3</url> -->
+
 
   <!-- Author tags are optional, mutiple are allowed, one per tag -->
   <!-- Authors do not have to be maintianers, but could be -->
@@ -42,11 +41,9 @@
   <!--   <test_depend>gtest</test_depend> -->
   <buildtool_depend>catkin</buildtool_depend>
   <build_depend>msgs</build_depend>
-  <build_depend>roscpp</build_depend>
-  <build_depend>tf</build_depend>
+  <build_depend>rospy</build_depend>
   <run_depend>msgs</run_depend>
-  <run_depend>roscpp</run_depend>
-  <run_depend>tf</run_depend>
+  <run_depend>rospy</run_depend>
 
 
   <!-- The export tag contains other, unspecified, tags -->

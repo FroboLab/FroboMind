@@ -3,23 +3,27 @@
 	<node pkg="rviz" type="rviz" name="visualization" args="$(find sdu_pichi_surveyor)/conf/default.rviz"/>
 	<node pkg="smach_viewer" name="stateMachine_viewer" type="smach_viewer.py"/>
 	<node pkg="twist_stamped_to_twist" name="converter" type="cmd_vel_converter.py"/>
-	<node pkg="position_action_server" name="positionActionServer" type="positionGoalActionServer.py"/>
+	<node pkg="position_action_server" name="positionActionServer" type="positionGoalActionServer.py">
+		<param name="straight_line" value="True"/>
+	</node>
 
 	<group ns="fmHMI">
-		<node pkg="wiimote" type="wiimote_node.py" name="wiimote" respawn="true"/>
+		<node pkg="wiimote" type="wiimote_node.py" name="wiimote" respawn="true">
+			<param name="fixed_wiimote_address" value="00:1F:C5:3B:AE:63"/>
+		</node>
     </group>
     	
 	<group ns="fmDecisionMakers">
 		<node pkg="sdu_pichi_surveyor" name="mission_control" type="survey.py">
     		<param name="deadman_topic" value="/fmSignals/deadman" />
 			<param name="cmd_vel_topic" value="/fmSignals/cmd_vel" />
+			<param name="feedback_topic" value="/fmHMI/joy/set_feedback" />
+			<param name="joy_topic" value="/fmHMI/joy" />
+			<param name="status_topic" value="/fmData/status"/>		
 			<param name="max_linear_velocity" value="2"/>
 			<param name="max_angular_velocity" value="3"/>
 			<param name="deadband" value="5"/>
 			<param name="reduced_range" value="40"/>
-			<param name="feedback_topic" value="/fmHMI/joy/set_feedback" />
-			<param name="joy_topic" value="/fmHMI/joy" />
-			<param name="status_topic" value="/fmData/status"/>
 			<param name="publish_frequency" value="5"/>
 		</node>
 	</group>

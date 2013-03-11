@@ -1,0 +1,65 @@
+<launch>
+	<group ns="fmDecisionMakers">
+		<node pkg="sdu_frobit_remote_map" name="frobit_remote" type="remote.py" output="screen">
+    		<param name="deadman_topic" value="/fmSignals/deadman" />
+			<param name="cmd_vel_topic" value="/fmSignals/cmd_vel" />
+			<param name="max_linear_velocity" value="2"/>
+			<param name="max_angular_velocity" value="4"/>
+			<param name="deadband" value="5"/>
+			<param name="reduced_range" value="40"/>
+			<param name="feedback_topic" value="/fmLib/joy/set_feedback" />
+			<param name="joy_topic" value="/fmLib/joy" />
+			<param name="status_topic" value="/fmData/status"/>
+			<param name="publish_frequency" value="10"/>
+		</node>
+	</group>
+
+	<group ns="fmControllers">
+		<node pkg="differential_ifk" name="diff" type="differential_ifk_node" output="screen" >
+			<param name="hl_subscriber_topic" value="/fmSignals/cmd_vel"/>
+			<param name="ll_publisher_topic_left" value="/fmSignals/cmd_vel_left"/>
+			<param name="ll_publisher_topic_right" value="/fmSignals/cmd_vel_right"/>
+			<param name="distance_center_to_wheel" value="0.1075" />
+		</node>
+	</group>
+
+	<group ns="transforms">
+		<node pkg="tf" type="static_transform_publisher" name="base_link_broadcaster" args="0 0 0 0 0 0 base_footprint base_link 100"/>
+		<node pkg="tf" type="static_transform_publisher" name="left_wheel_link_broadcaster"	args="0 0.42 0 0 0 0 base_link left_wheel_link 100"/>
+		<node pkg="tf" type="static_transform_publisher" name="right_wheel_link_broadcaster" args="0 -0.42 0 0 0 0 base_link right_wheel_link 100"/>
+	</group>
+
+	<group ns="fmLib">
+		<node pkg="sdu_pichi" name="sdu_pichi_node" type="sdu_pichi_node" output="screen" >
+			<param name="cmd_vel_ch1_topic" value="/fmSignals/cmd_vel_left"/>
+			<param name="cmd_vel_ch2_topic" value="/fmSignals/cmd_vel_right"/>
+			<param name="serial_rx_topic" value="/fmData/rx"/>
+			<param name="serial_tx_topic" value="/fmData/tx"/>
+			<param name="deadman_topic" value="/fmSignals/deadman"/>
+			<param name="encoder_ch1_topic" value="/fmInformation/encoder_left"/>
+			<param name="encoder_ch2_topic" value="/fmInformation/encoder_right"/>	
+			<param name="power_ch1_topic" value="/fmData/power_left"/>
+			<param name="power_ch2_topic" value="/fmData/power_right"/>
+			<param name="status_topic" value="/fmData/status"/>	
+			<param name="p_gain" value="50"/>
+			<param name="i_gain" value="0"/>
+			<param name="d_gain" value="0"/>         
+        </node>
+
+        <node pkg="wiimote" type="wiimote_node.py" name="remote_control" respawn="true">
+        	<!--param name="fixed_wiimote_address" value="00:1F:C5:3B:AE:63"/-->
+		</node>
+
+		<node pkg="sdu_pichi" type="test.py" name="tester" output="screen"/>
+		
+		<!-- <node pkg="serial_string" name="serial_string_node" type="serial_string_node" output="screen" >
+	        <param name="publisher_topic" value="/fmData/rx" />	 
+	        <param name="subscriber_topic" value="/fmData/tx" />	
+	        <param name="device" value="/dev/ttyACM0" />	
+	        <param name="baudrate" value="115200" />
+	        <param name="termination_character" value="13"/>
+		</node> --> 	
+	</group>
+	
+	
+</launch>

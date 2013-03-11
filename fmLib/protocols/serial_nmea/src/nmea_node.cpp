@@ -57,14 +57,13 @@ ros::Publisher msg_to_str_pub;
 msgs::nmea nmea_msg;
 bool use_checksum;
 
-
-typedef boost::tokenizer<boost::char_separator<char> > tokenizer;
-
 /* Parses from a string into two hex characters */
-int atox(const char *s) {
+int atox(const char *s)
+{
 	int ret = 0;
 	int cnt = 8;
-	while (cnt) {
+	while (cnt)
+	{
 		if ((*s >= '0') && (*s <= '9')) {
 			ret <<= 4;
 			ret += (*s - '0');
@@ -91,119 +90,113 @@ int atox(const char *s) {
 	return ret;
 }
 
-/* Calculates expected checksum and compares to contained checksum */
-bool verify_checksum(std::vector<std::string> tokens) {
-	//Setup proper string
-	std::string temp_str = "0x";
-	temp_str.append(tokens.at(tokens.size() - 1).c_str());
+std::string xtoa(unsigned char chk)
+{
+	std::string str;
+	unsigned char nibble;
 
-	unsigned char expected_checksum = atox(
-			tokens.at(tokens.size() - 1).c_str());
+	/*process high nibble*/
+	nibble = (chk >> 4) & 0x0F;
+	if(nibble < 10)
+		str.push_back( nibble + '0' );
+	else
+		str.push_back( nibble - 10 + 'A' );
+
+	/*process low nibble*/
+	nibble = chk & 0x0F;
+	if(nibble < 10)
+		str.push_back( nibble + '0' );
+	else
+		str.push_back( nibble - 10 + 'A' );
+
+	return str;
+}
+
+/* Calculates checksum from string */
+unsigned char get_checksum(std::string str)
+{
 	unsigned char checksum = 0;
-	unsigned char *string_breakdown;
-
-	//Calculate check sum
-	for (unsigned int i = 0; i < tokens.size() - 1; i++) {
-		string_breakdown = (unsigned char*) tokens.at(i).c_str();
-
-		for (unsigned int j = 0; j < tokens.at(i).length(); j++)
-			if (string_breakdown[j] != '$')
-				checksum ^= string_breakdown[j];
-
-		//Remember the ','
-		if (i < (tokens.size() - 2))
-			checksum ^= ',';
-	}
-
-	return (checksum == expected_checksum);
+	for( int i = 0 ; i < str.size() ; i++)
+		checksum ^= str.at(i);
+	return checksum;
 }
 
 /* Parses from serial message to nmea message */
-void str_to_msg_callback(const msgs::serial::ConstPtr& msg) {
-	std::string nmeastr(msg->data);
+void str_to_msg_callback(const msgs::serial::ConstPtr& msg)
+{
+	//build NMEA message data type
+	nmea_msg.header.stamp = msg->header.stamp;
+	nmea_msg.type.clear();
+	nmea_msg.data.clear();
+	nmea_msg.length = 0;
+	nmea_msg.valid = false;
 
-	if (msg->data[0] == '$')
+	if (msg->data[0] == '$' && msg->data.find(","))
 	{	
-		//build NMEA message data type
-		nmea_msg.header.stamp = ros::Time::now();
-		nmea_msg.type.clear();
-		nmea_msg.data.clear();
-		nmea_msg.length = 0;
-		nmea_msg.valid = false;
+ 		// test if checksum is appended to the received message
+		bool checksum_appended = msg->data.find("*");
 
-		// test if checksum is appended to the received message
-		bool checksum_appended = nmeastr.find("*");
+		// Separate into datastring and checksum
+		boost::char_separator<char> split("$*\r");
+		boost::tokenizer<boost::char_separator<char> > tokens(msg->data, split);
+		std::vector<std::string> nmea_split;
+		nmea_split.assign(tokens.begin(), tokens.end());
 
-		boost::char_separator<char> sep("$,*\r");
-		tokenizer tokens(nmeastr, sep);
-		std::vector<std::string> nmea;
-		nmea.assign(tokens.begin(), tokens.end());
-		if (nmea.size() >= 3)
-		{
-			nmea_msg.type = nmea.at(0);
-			if(checksum_appended == true)
-			{
-				int i;
-				for (i = 1 ; i < nmea.size()-1 ; i++ )
-					nmea_msg.data.push_back( nmea.at(i).c_str() );
-				nmea_msg.length = i-1; // number of data values
+		// Separate data_string
+		boost::char_separator<char> sep("," , "" , boost::keep_empty_tokens);
+		boost::tokenizer<boost::char_separator<char> > data_tokens(nmea_split.at(0), sep);
+		nmea_msg.data.assign(data_tokens.begin(), data_tokens.end());
 
-				if (!verify_checksum(nmea))
-				{
-					ROS_WARN("NMEA string discarded due to faulty checksum");
-				}
-				else
-					nmea_msg.valid = true;
-			}
-			else
-			{
-				int i;
-				for (i = 1 ; i < nmea.size() ; i++ )
-					nmea_msg.data.push_back( nmea.at(i).c_str() );
-				nmea_msg.length = i; // number of data values
-				nmea_msg.valid = true;
-			}
-		}
-		else
-			ROS_WARN("NMEA string discarded due to bogus content");
+		// Extract type and remove type from data. Save length
+		nmea_msg.type = nmea_msg.data.at(0);
+		nmea_msg.data.erase( nmea_msg.data.begin() );
+		nmea_msg.length = nmea_msg.data.size();
 
-		str_to_msg_pub.publish(nmea_msg); //publish message
+		// Validate checksum if appended
+		if(checksum_appended)
+			nmea_msg.valid = get_checksum( nmea_split.at(0) ) == atox( nmea_split.at(1).c_str() );
 	}
 	else
-		ROS_WARN("NMEA string does not contain $");
+		ROS_WARN("Unreadable NMEA string discarded");
+
+	//publish message
+	str_to_msg_pub.publish(nmea_msg);
+
 }
 
 /* Parses from  nmea message to serial message */
-void msg_to_str_callback(const msgs::nmea::ConstPtr& msg) {
-	std::vector<std::string> data_list;
-	std::vector<std::string> nmea_list;
-	std::string data_string;
-	msgs::serial nmea_string;
+void msg_to_str_callback(const msgs::nmea::ConstPtr& msg)
+{
+	// Construct message object
+	msgs::serial nmea_message;
+	nmea_message.header.stamp = msg->header.stamp;
 
-	//construct data string
-	for(int i = 0 ; i < msg->data.size() ; i++ )
-		data_list.push_back(msg->data[i]);
-	data_string = boost::algorithm::join(data_list, ",");
+	std::vector<std::string> nmea_vector;
 
-	//construct nmea string
-	nmea_list.push_back("$");
-	nmea_list.push_back(msg->type);
-	nmea_list.push_back(",");
-	nmea_list.push_back(data_string);
-	
+	// Generate nmea string
+	nmea_vector.push_back("$");
+	nmea_vector.push_back(msg->type);
+	nmea_vector.push_back(",");
+	nmea_vector.push_back( boost::algorithm::join(msg->data, ",") );
+
+	// Append checksum
 	if (use_checksum == true)
 	{
-		// TODO: Add support for optional checksum on transmitted NMEA messages
+		unsigned char chk = 0;
 
-	//	nmea_list.push_back("*"); 
-	//	nmea_list.push_back("00");
+		// Calculate checksum of type and data fields
+		for(unsigned int i = 1 ; i < 4 ; i++)
+			chk ^= get_checksum( nmea_vector.at(i) );
+
+		// Append to vector
+		nmea_vector.push_back("*");
+		nmea_vector.push_back( xtoa(chk) );
 	}
-	nmea_list.push_back("\r\n");
 
-	nmea_string.header.stamp = msg->header.stamp;
-	nmea_string.data = boost::algorithm::join(nmea_list,"");
-
-	msg_to_str_pub.publish(nmea_string);
+	// Append string end and publish combined message
+	nmea_vector.push_back("\r\n");
+	nmea_message.data = boost::algorithm::join(nmea_vector,"");
+	msg_to_str_pub.publish(nmea_message);
 }
 
 
@@ -218,15 +211,11 @@ int main(int argc, char **argv) {
 	std::string msg_to_str_sub_id;
 	std::string msg_to_str_pub_id;
 
-	n.param<std::string>("str_to_msg_sub", str_to_msg_sub_id,
-			"/fmCSP/S0_rx_msg");
-	n.param<std::string>("str_to_msg_pub", str_to_msg_pub_id,
-			"/nmea_in");
-	n.param<std::string>("msg_to_str_sub", msg_to_str_sub_id,
-			"/nmea_out");
-	n.param<std::string>("msg_to_str_pub", msg_to_str_pub_id,
-			"/fmCSP/S0_tx_msg");
-	n.param<bool>("use_nmea_checksum" , use_checksum , false);
+	n.param<std::string>("str_to_msg_sub", str_to_msg_sub_id,"/fmData/rx");
+	n.param<std::string>("str_to_msg_pub", str_to_msg_pub_id,"/fmData/nmea_in");
+	n.param<std::string>("msg_to_str_sub", msg_to_str_sub_id,"/fmData/nmea_out");
+	n.param<std::string>("msg_to_str_pub", msg_to_str_pub_id,"/fmData/tx");
+	n.param<bool>("use_nmea_checksum" , use_checksum , true);
 
 	ros::Subscriber str_to_msg_sub = nh.subscribe(str_to_msg_sub_id, 10, str_to_msg_callback);
 	str_to_msg_pub = nh.advertise<msgs::nmea>(str_to_msg_pub_id, 1);
@@ -237,4 +226,3 @@ int main(int argc, char **argv) {
 	ros::spin();
 	return 0;
 }
-

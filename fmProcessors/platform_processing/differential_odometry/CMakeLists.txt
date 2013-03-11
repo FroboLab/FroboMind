@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(encoder_and_imu_to_odom)
+project(differential_odometry)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -34,7 +34,7 @@ find_package(catkin REQUIRED COMPONENTS msgs roscpp tf)
 ## Generate added messages and services with any dependencies listed here
 # generate_messages(
 #   DEPENDENCIES
-#   navigation_msgs#   sensor_msgs
+#   std_msgs  # Or other packages containing msgs
 # )
 
 ###################################################
@@ -46,8 +46,8 @@ find_package(catkin REQUIRED COMPONENTS msgs roscpp tf)
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
    INCLUDE_DIRS include
-#  LIBRARIES encoder_to_odom
-#  CATKIN_DEPENDS msgs navigation_msgs roscpp sensor_msgs
+#  LIBRARIES differential_odometry
+#  CATKIN_DEPENDS msgs roscpp tf
 #  DEPENDS system_lib
 )
 
@@ -57,23 +57,22 @@ catkin_package(
 
 ## Specify additional locations of header files
 include_directories(include
-  /usr/include
   ${catkin_INCLUDE_DIRS}
 )
 
 ## Declare a cpp library
-# add_library(encoder_to_odom
-#   src/${PROJECT_NAME}/encoder_to_odom.cpp
+# add_library(differential_odometry
+#   src/${PROJECT_NAME}/differential_odometry.cpp
 # )
 
 ## Declare a cpp executable
- add_executable(encoder_imu_odom_node src/encoder_imu_odom.cpp)
+add_executable(differential_odometry_node src/differential_odometry_node.cpp)
 
 ## Add dependencies to the executable
- add_dependencies(encoder_imu_odom_node ${PROJECT_NAME})
+add_dependencies(differential_odometry_node ${PROJECT_NAME})
 
 ## Specify libraries to link a library or executable target against
- target_link_libraries(encoder_imu_odom_node
+target_link_libraries(differential_odometry_node
    ${catkin_LIBRARIES}
  )
 
@@ -89,7 +88,7 @@ include_directories(include
 # )
 
 ## Mark executables and/or libraries for installation
-# install(TARGETS encoder_to_odom encoder_to_odom_node
+# install(TARGETS differential_odometry differential_odometry_node
 #   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 #   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 #   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
@@ -114,7 +113,7 @@ include_directories(include
 #############
 
 ## Add gtest based cpp test target and link libraries
-# catkin_add_gtest(${PROJECT_NAME}-test test/test_encoder_to_odom.cpp)
+# catkin_add_gtest(${PROJECT_NAME}-test test/test_differential_odometry.cpp)
 # if(TARGET ${PROJECT_NAME}-test)
 #   target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME})
 # endif()

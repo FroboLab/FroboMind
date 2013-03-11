@@ -74,8 +74,13 @@ class positionGoalActionServer():
         self.max_linear_velocity = rospy.get_param("~max_linear_velocity",2)
         self.max_angular_velocity = rospy.get_param("~max_angular_velocity",1)
         self.max_distance_error = rospy.get_param("~max_distance_error",0.1)
-        self.odom_sub = rospy.Subscriber('/base_pose_ground_truth', Odometry, self.onOdometry )
-        self.twist_pub = rospy.Publisher('/fmSignals/cmd_vel', TwistStamped)
+        self.straight_line = rospy.get_param("~straight_line",False)
+        
+        self.odometry_topic = rospy.get_param("~odometry_topic","/base_pose_ground_truth")
+        self.cmd_vel_topic = rospy.get_param("~cmd_vel_topic","/fmSignals/cmd_vel")
+        
+        self.odom_sub = rospy.Subscriber(self.odometry_topic, Odometry, self.onOdometry )
+        self.twist_pub = rospy.Publisher(self.cmd_vel_topic, TwistStamped)
         
         # Set parameters not yet on server
         self.rate = rospy.Rate(5)
@@ -111,7 +116,7 @@ class positionGoalActionServer():
         # Construct a vector from position goal
         self.destination.vec[0] = goal.x
         self.destination.vec[1] = goal.y  
-              
+
         while not rospy.is_shutdown() :
             # Check for new goal
             if self._server.is_new_goal_available() :
@@ -141,6 +146,10 @@ class positionGoalActionServer():
                 self.twist.twist.linear.x = self.distance_error
                 self.twist.twist.angular.z = self.angle_error
                 
+                # If straight line driving is true, angle error must be corrected before distance error
+                if self.straight_line and ( self.angle_error > 0.5 or self.angle_error < -0.5 ) :
+                        self.twist.twist.linear.x = self.distance_error * 0.1    
+
                 # Implement maximum linear velocity and maximum angular velocity
                 if self.twist.twist.linear.x > self.max_linear_velocity:
                     self.twist.twist.linear.x = self.max_linear_velocity

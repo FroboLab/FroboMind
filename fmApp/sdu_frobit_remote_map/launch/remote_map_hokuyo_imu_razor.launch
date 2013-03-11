@@ -38,16 +38,15 @@
 			<param name="odom_frame" value="odom_combined"/>
 		</node>
 
-		<node pkg="encoder_and_imu_to_odom" name="encoder_imu_odom" type="encoder_imu_odom_node" output="screen" >
+		<node pkg="differential_odometry" name="differential_odometry" type="differential_odometry_node" output="screen" >
 			<param name="enc_left_sub" value="/fmInformation/encoder_left" />
 			<param name="enc_right_sub" value="/fmInformation/encoder_right" />
 			<param name="imu_sub" value="/fmInformation/imu" />
 			<param name="odom_pub" value="/fmKnowledge/odom" />
+			<param name="yaw_angle_source" value="imu_angular_velocity"></param>  
+			<param name="imu_angular_velocity_yaw_axis" value="-z"></param> 
 			<param name="vehicle_frame" value="base_footprint"></param>      
-			<param name="odom_estimate_frame" value="odom_combined"></param>      
-			<param name="yaw_angle_source" value="angular_velocity"></param> <!-- odometry/imu_angular_velocity/imu_orientation -->  
-			<param name="imu_yaw_axis" value="z"></param> <!-- x/y/z -->  
-			<param name="enc_max_time_diff" value="1"></param>      
+			<param name="odom_estimate_frame" value="/odom_combined"></param>      
 		</node>
 	</group>
 
@@ -101,7 +100,7 @@
 			<param name="str_to_msg_sub" value="/fmData/imu_rx" />   
 			<param name="str_to_msg_pub" value="/fmData/nmea_from_imu" />
 			<param name="msg_to_str_sub" value="/fmData/nmea_to_imu" />   
-			<param name="msg_to_str_pub" value="/fmData/imu_tx" />           
+			<param name="msg_to_str_pub" value="/fmData/imu_tx" />         
 			<!-- <param name="use_nmea_checksum" value="true" /> -->
 		</node>
 

@@ -4,9 +4,6 @@
 # Ignore Python .pyc
 *.pyc
 
-# Ignore dependencies
-executive_smach
-joystick_drivers
-
 # Ignore top-level symbolic link to CMakeLists.txt
 /CMakeLists.txt
+

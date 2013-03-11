@@ -1,5 +1,5 @@
 /*****************************************************************************
-# FroboMind (encoder_imu_odom)
+# FroboMind (differential_odometry)
 # Copyright (c) 2012-2013,
 #	Morten Larsen <mortenlarsens@gmail.com>
 #	Kjeld Jensen <kjeld@frobomind.org>
@@ -28,14 +28,19 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #*****************************************************************************
 #
-# This node subscribes to left and right encoder ticks from a differentially
-# steered robot platform and publishes an odometry message.
+# The node subscribes to left and right encoder ticks from a differentially
+# steered robot platform and optionally gyro rate or orientation from an IMU.
+# The node publishes an odometry message.
 #
 # 2012-04-25 morl Created
-# 2013-03-05 kjen Major cleanup, now supporting global robot parameters
+# 2013-03-07 kjen Major cleanup, renamed to differential_odometry
+#                 now supporting global robot parameters
+#                 now supporting odometry, imu angular rate and imu_orientation
+#                 as yaw angle source
+#                 now supporting x,y,z as angular rate yaw axis (including inverted)
 #
 #****************************************************************************/
-
+// includes
 #include <ros/ros.h>
 #include <ros/console.h>
 
@@ -47,38 +52,71 @@
 #include <tf/transform_broadcaster.h>
 #include <string>
 
-#define YAW_AXIS_X 1
-#define YAW_AXIS_Y 2
-#define YAW_AXIS_Z 3
+// defines	
+#define IDENT 					"differential_odometry_node"
 
-#define YAW_SOURCE_ODOMETRY 1
-#define YAW_SOURCE_IMU_ANGULAR_VELOCITY 2
-#define YAW_SOURCE_IMU_ORIENTATION 3
+#define TIMEOUT_LAUNCH				5
+#define TIMEOUT_ENCODER				0.5
+#define TIMEOUT_IMU				0.5
+
+#define M_PI2					2*M_PI
+
+#define YAW_AXIS_X 				1
+#define YAW_AXIS_X_INVERTED			2
+#define YAW_AXIS_Y				3
+#define YAW_AXIS_Y_INVERTED			4
+#define YAW_AXIS_Z				5
+#define YAW_AXIS_Z_INVERTED			6
+
+#define YAW_SOURCE_ODOMETRY 			1
+#define YAW_SOURCE_IMU_ANGULAR_VELOCITY 	2
+#define YAW_SOURCE_IMU_ORIENTATION 		3
 
 using namespace std;
 
 class SimpleOdom
 {
 public:
-	SimpleOdom(double tick_to_meter, double wheel_dist, int yaw_source, int yaw_axis, double max_time_diff)
+	SimpleOdom(double tick_to_meter, double wheel_dist, int yaw_source, int yaw_axis)
 	{
 		this->tick_to_meter = tick_to_meter;
 		this->wheel_dist = wheel_dist;
 		this->yaw_source = yaw_source;
 		this->yaw_axis = yaw_axis;
-		this->max_time_diff = max_time_diff;
 
 		delta_l = delta_r = 0; // reset encoder ticks (since last published odometry)
 		x = y = theta = 0; // reset map pose
 
 		imu_yaw = prev_imu_yaw = 0; // reset imu angle
 
-		l_time_prev = r_time_prev = imu_time_prev = ros::Time::now();
+		encoder_timeout = false;
+		imu_timeout = false;
+	
+		time_launch = l_time_prev = r_time_prev = imu_time_prev = ros::Time::now();
 		l_updated = r_updated = l_ready = r_ready = false;
 	}
 
 	~SimpleOdom()
 	{
+	}
+
+	double angle_limit (double angle) // keep angle within [0;2*pi[
+	{ 
+		while (angle >= M_PI2)
+			angle -= M_PI2;
+		while (angle < 0)
+			angle += M_PI2;
+		return angle;
+	}
+
+	double angle_diff (double angle_new, double angle_old) // return signed difference between new and old angle
+	{
+		double diff = angle_new - angle_old;
+		while (diff < -M_PI)
+			diff += M_PI2;
+		while (diff > M_PI)
+			diff -= M_PI2;
+		return diff;
 	}
 
 	void processLeftEncoder(const msgs::encoder::ConstPtr& msg)
@@ -105,11 +143,11 @@ public:
 		{
 			case YAW_SOURCE_IMU_ORIENTATION:
 				{
-					double q0 = msg->orientation.x;
-					double q1 = msg->orientation.y;
-					double q2 = msg->orientation.z;
-					double q3 = msg->orientation.w;
-					imu_yaw = atan2 (2*(q0*q1+q3*q2),(pow(q3,2)-pow(q2,2)-pow(q1,2)+pow(q0,2)));
+					double qx = msg->orientation.x;
+					double qy = msg->orientation.y;
+					double qz = msg->orientation.z;
+					double qw = msg->orientation.w;
+					imu_yaw = atan2(2*(qx*qy + qw*qz), qw*qw + qx*qx - qy*qy - qz*qz);
 				}			
 				break;
 
@@ -123,13 +161,23 @@ public:
 						case YAW_AXIS_X:
 							imu_yaw += (msg->angular_velocity.x*dt);
 							break;
+						case YAW_AXIS_X_INVERTED:
+							imu_yaw -= (msg->angular_velocity.x*dt);
+							break;
 						case YAW_AXIS_Y:
 							imu_yaw += (msg->angular_velocity.y*dt);
+							break;
+						case YAW_AXIS_Y_INVERTED:
+							imu_yaw -= (msg->angular_velocity.y*dt);
 							break;
 						case YAW_AXIS_Z:
 							imu_yaw += (msg->angular_velocity.z*dt);
 							break;
+						case YAW_AXIS_Z_INVERTED:
+							imu_yaw -= (msg->angular_velocity.z*dt);
+							break;
 					}
+					imu_yaw = angle_limit (imu_yaw);
 				}
 				break;
 		}
@@ -138,39 +186,55 @@ public:
 	void publishOdometry(const ros::TimerEvent& e)
 	{
 
+		ros::Time time_now = ros::Time::now();
 		if(l_updated && r_updated)
 		{
-			ros::Time time_now = ros::Time::now(); 
+			encoder_timeout = false;
 
-			// check update times
-			if((l_time_latest - r_time_latest).toSec() > max_time_diff)
+			// check if we are receiving IMU updates
+			if (yaw_source != YAW_SOURCE_ODOMETRY) 
 			{
-				ROS_WARN("Encoder stamp (left - right) differs %.3f",(l_time_latest - r_time_latest).toSec());
+				if (! imu_timeout)
+				{
+					if ((time_now - imu_time_latest).toSec() >= TIMEOUT_IMU && (time_now - time_launch).toSec() > TIMEOUT_LAUNCH)
+					{
+						imu_timeout = true;
+						ROS_WARN("%s: IMU data not available!", IDENT);
+					}
+				}
+				else
+				{
+					if ((time_now - imu_time_latest).toSec() < TIMEOUT_IMU)
+					{
+						imu_timeout = false;
+						ROS_INFO("%s: Receiving data from IMU.", IDENT);
+					}
+				}
 			}
-			r_updated = l_updated = false;
 			
 			delta_l *= tick_to_meter; // convert from ticks to meter
 			delta_r *= tick_to_meter;
 
 			double dx = (delta_l + delta_r)/2; // approx. distance (assuming linear motion during dt)
+			double dtheta;
 
 			// calculate change in orientation using odometry
-			// double dtheta = (delta_r - delta_l)/wheel_dist; 
-
-			// or calculate change in orientation using IMU
-			double dtheta = imu_yaw - prev_imu_yaw;
-			prev_imu_yaw = imu_yaw;
+			if (yaw_source == YAW_SOURCE_ODOMETRY)
+			{
+				dtheta = (delta_r - delta_l)/wheel_dist; 
+			}
+			else // or calculate change in orientation using IMU
+			{
+				dtheta = angle_diff (imu_yaw, prev_imu_yaw);
+				prev_imu_yaw = imu_yaw;
+			}
 
  			delta_l = delta_r = 0;
 			double ang = theta + dtheta/2;
 			x += cos(ang)*dx; //update odometry given position of the robot
 			y += sin(ang)*dx;
 			theta += dtheta;
-
-			if (theta < -M_PI) // angle housekeeping
-				theta += 2*M_PI;
-			else if(theta > M_PI)
-				theta -= 2*M_PI;
+			theta = angle_limit (theta); // keep theta within [0;2*pi[
 
 			// ROS_INFO("Odo %.3f %.3f %2f",x, y, theta);
 
@@ -198,6 +262,15 @@ public:
 			odom.twist.twist.angular.z = dtheta/dt;
 			odom_pub.publish(odom);
 		}
+		else if (! encoder_timeout)
+		{
+			if(((time_now-l_time_latest).toSec() > TIMEOUT_ENCODER || (time_now-r_time_latest).toSec() > TIMEOUT_ENCODER)
+				&& (time_now-time_launch).toSec() > TIMEOUT_LAUNCH)
+			{
+				encoder_timeout = true;
+				ROS_WARN("%s: Encoder data not available!", IDENT);
+			}
+		}
 	}
 
 	// public variables
@@ -209,10 +282,10 @@ private:
 	double tick_to_meter, wheel_dist;
 	int yaw_source, yaw_axis;
 	double imu_yaw, prev_imu_yaw;
-	double max_time_diff;
+	bool encoder_timeout, imu_timeout;
 	double delta_l, delta_r;
 	bool l_updated, r_updated;
-	ros::Time l_time_latest, l_time_prev, r_time_latest, r_time_prev, imu_time_latest, imu_time_prev;
+	ros::Time time_launch, l_time_latest, l_time_prev, r_time_latest, r_time_prev, imu_time_latest, imu_time_prev;
 	bool l_ready, r_ready;
 	double x, y, theta;
 	msgs::encoder prev_l, prev_r;
@@ -234,7 +307,6 @@ int main(int argc, char** argv) {
 	double wheel_radius, wheel_ticks_rev, tick_to_meter;
 	double wheel_dist;
 	int yaw_source, yaw_axis;
-	double max_time_diff;
 	ros::Subscriber s1,s2,s3;
 
 	// publishers
@@ -253,29 +325,70 @@ int main(int argc, char** argv) {
 
 	// other parameters
 	std::string yaw_source_str;
-	yaw_source = YAW_SOURCE_ODOMETRY;
-	nh.param<string>("yaw_angle_source", yaw_source_str, "odometry");
+	nh.param<string>("yaw_angle_source", yaw_source_str, "not initialized");
 	if ( yaw_source_str.compare ("odometry") == 0)
+	{
 		yaw_source = YAW_SOURCE_ODOMETRY;
+		ROS_INFO("%s Source for rotation about yaw axis: Odometry", IDENT);
+	}
 	else if ( yaw_source_str.compare ("imu_angular_velocity") == 0)
+	{
 		yaw_source = YAW_SOURCE_IMU_ANGULAR_VELOCITY;
+		ROS_INFO("%s Source for rotation about yaw axis: IMU angular velocity", IDENT);
+	}
 	else if ( yaw_source_str.compare ("imu_orientation") == 0)
+	{
 		yaw_source = YAW_SOURCE_IMU_ORIENTATION;
-
-	std::string yaw_axis_str;
-	yaw_source = YAW_AXIS_Z;
-	nh.param<string>("imu_yaw_axis", yaw_axis_str, "z");
-	if ( yaw_axis_str.compare ("x") == 0)
-		yaw_axis = YAW_AXIS_X;
-	else if ( yaw_axis_str.compare ("y") == 0)
-		yaw_axis = YAW_AXIS_Y;
-	else if ( yaw_axis_str.compare ("z") == 0)
-		yaw_axis = YAW_AXIS_Z;
-
-	nh.param<double>("enc_max_time_diff", max_time_diff,1);
+		ROS_INFO("%s Source for rotation about yaw axis: IMU orientation", IDENT);
+	}
+	else
+	{
+		yaw_source = YAW_SOURCE_ODOMETRY;
+		ROS_WARN("%s Source for rotation about yaw axis: Unknown, defaults to odometry", IDENT);
+	}
+	if (yaw_source == YAW_SOURCE_IMU_ANGULAR_VELOCITY)
+	{
+		std::string yaw_axis_str;
+		nh.param<string>("imu_angular_velocity_yaw_axis", yaw_axis_str, "not initialized");
+		if ( yaw_axis_str.compare ("x") == 0)
+		{
+			yaw_axis = YAW_AXIS_X;
+			ROS_INFO("%s IMU yaw axis (ENU): X", IDENT);
+		}		
+		else if ( yaw_axis_str.compare ("-x") == 0)
+		{
+			yaw_axis = YAW_AXIS_X_INVERTED;
+			ROS_INFO("%s IMU yaw axis (ENU): X (inverted)", IDENT);
+		}
+		else if ( yaw_axis_str.compare ("y") == 0)
+		{
+			yaw_axis = YAW_AXIS_Y;
+			ROS_INFO("%s IMU yaw axis (ENU): Y", IDENT);
+		}
+		else if ( yaw_axis_str.compare ("-y") == 0)
+		{
+			yaw_axis = YAW_AXIS_Y_INVERTED;
+			ROS_INFO("%s IMU yaw axis (ENU): Y (inverted)", IDENT);
+		}
+		else if ( yaw_axis_str.compare ("z") == 0)
+		{
+			yaw_axis = YAW_AXIS_Z;
+			ROS_INFO("%s IMU yaw axis (ENU): Z", IDENT);
+		}
+		else if ( yaw_axis_str.compare ("-z") == 0)
+		{
+			yaw_axis = YAW_AXIS_Z_INVERTED;
+			ROS_INFO("%s IMU yaw axis (ENU): Z (inverted)", IDENT);
+		}
+		else
+		{
+			yaw_axis = YAW_AXIS_Z;
+			ROS_WARN("%s IMU yaw axis: Unknown, defaults to Z", IDENT);
+		}		
+	}
 
 	// init class
-	SimpleOdom p(tick_to_meter, wheel_dist, yaw_source, yaw_axis, max_time_diff);
+	SimpleOdom p(tick_to_meter, wheel_dist, yaw_source, yaw_axis);
 
 	// subscriber callback functions
 	s1 = nh.subscribe(subscribe_enc_l,15,&SimpleOdom::processLeftEncoder,&p);
@@ -285,7 +398,7 @@ int main(int argc, char** argv) {
 	// publish odometry at 0.02s = 50 Hz
 	p.odom_pub = n.advertise<nav_msgs::Odometry>(publish_topic.c_str(), 25);
 	nh.param<std::string>("vehicle_frame",p.base_frame,"base_footprint");
-	nh.param<std::string>("odom_estimate_frame",p.odom_frame,"odom_combined");
+	nh.param<std::string>("odom_estimate_frame",p.odom_frame,"/odom_combined");
 	ros::Timer t;
 	t = nh.createTimer(ros::Duration(0.02), &SimpleOdom::publishOdometry,&p);
 

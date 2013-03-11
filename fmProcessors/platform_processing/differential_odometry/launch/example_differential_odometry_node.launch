@@ -1,0 +1,38 @@
+<!--
+
+This launch file serves as an example on how to launch the differential_odometry_node
+and describes some of the launch parameters.
+
+yaw_angle_source options:
+	odometry		(estimate the yaw angle from wheel odometry)
+	imu_angular_velocity	(extimate the yaw angle using angular velocity from sensor_msgs/Imu.msg)
+	imu_orientation		(extimate the yaw angle using orientation from sensor_msgs/Imu.msg)
+
+imu_angular_velocity_yaw_axis options:
+	x  			(ENU reference x-axis)
+	-x 			(ENU reference x-axis inverted)
+	y  			(ENU reference y-axis)
+	-y 			(ENU reference y-axis inverted)
+	z  			(ENU reference z-axis)
+	-z 			(ENU reference z-axis inverted)
+
+-->
+
+<launch>
+	<param name="diff_steer_wheel_radius" value="0.051"/>
+	<param name="diff_steer_wheel_ticks_per_rev" value="180"/>
+	<param name="diff_steer_wheel_distance" value="0.215"/>
+
+	<group ns="fmProcessors">
+		<node pkg="differential_odometry" name="differential_odometry" type="differential_odometry_node" output="screen" >
+			<param name="enc_left_sub" value="/fmInformation/encoder_left" />
+			<param name="enc_right_sub" value="/fmInformation/encoder_right" />
+			<param name="imu_sub" value="/fmInformation/imu" />
+			<param name="odom_pub" value="/fmKnowledge/odom" />
+			<param name="yaw_angle_source" value="imu_angular_velocity"></param>  
+			<param name="imu_angular_velocity_yaw_axis" value="-d"></param> 
+			<param name="vehicle_frame" value="base_footprint"></param>      
+			<param name="odom_estimate_frame" value="/odom_combined"></param>      
+		</node>
+	</group>
+</launch>

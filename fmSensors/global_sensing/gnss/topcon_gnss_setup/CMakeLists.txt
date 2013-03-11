@@ -1,17 +1,17 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(encoder_to_odom)
+project(topcon_gnss_setup)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED COMPONENTS msgs roscpp tf)
+find_package(catkin REQUIRED COMPONENTS msgs rospy)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and scripts declared therein get installed
-# catkin_python_setup()
+ catkin_python_setup()
 
 #######################################
 ## Declare ROS messages and services ##
@@ -34,7 +34,7 @@ find_package(catkin REQUIRED COMPONENTS msgs roscpp tf)
 ## Generate added messages and services with any dependencies listed here
 # generate_messages(
 #   DEPENDENCIES
-#   navigation_msgs#   sensor_msgs
+#   std_msgs  # Or other packages containing msgs
 # )
 
 ###################################################
@@ -45,9 +45,9 @@ find_package(catkin REQUIRED COMPONENTS msgs roscpp tf)
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-   INCLUDE_DIRS include
-#  LIBRARIES encoder_to_odom
-#  CATKIN_DEPENDS msgs navigation_msgs roscpp sensor_msgs
+#  INCLUDE_DIRS include
+#  LIBRARIES topcon_g3
+#  CATKIN_DEPENDS msgs rospy
 #  DEPENDS system_lib
 )
 
@@ -56,27 +56,23 @@ catkin_package(
 ###########
 
 ## Specify additional locations of header files
-include_directories(include
-  /usr/include
-  ${catkin_INCLUDE_DIRS}
-)
+# include_directories(include ${catkin_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS})
 
 ## Declare a cpp library
-# add_library(encoder_to_odom
-#   src/${PROJECT_NAME}/encoder_to_odom.cpp
+# add_library(topcon_g3
+#   src/${PROJECT_NAME}/topcon_g3.cpp
 # )
 
 ## Declare a cpp executable
- add_executable(encoder_odom_node src/encoder_odom.cpp)
+# add_executable(topcon_g3_node src/topcon_g3_node.cpp)
 
 ## Add dependencies to the executable
- add_dependencies(encoder_odom_node ${PROJECT_NAME})
+# add_dependencies(topcon_g3_node ${PROJECT_NAME})
 
 ## Specify libraries to link a library or executable target against
- target_link_libraries(encoder_odom_node
-   ${catkin_LIBRARIES}
- )
-
+# target_link_libraries(topcon_g3_node
+#   ${catkin_LIBRARIES}
+# )
 
 #############
 ## Install ##
@@ -90,7 +86,7 @@ include_directories(include
 # )
 
 ## Mark executables and/or libraries for installation
-# install(TARGETS encoder_to_odom encoder_to_odom_node
+# install(TARGETS topcon_g3 topcon_g3_node
 #   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 #   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 #   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
@@ -115,7 +111,7 @@ include_directories(include
 #############
 
 ## Add gtest based cpp test target and link libraries
-# catkin_add_gtest(${PROJECT_NAME}-test test/test_encoder_to_odom.cpp)
+# catkin_add_gtest(${PROJECT_NAME}-test test/test_topcon_g3.cpp)
 # if(TARGET ${PROJECT_NAME}-test)
 #   target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME})
 # endif()
