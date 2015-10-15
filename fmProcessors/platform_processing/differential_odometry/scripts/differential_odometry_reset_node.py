@@ -50,12 +50,12 @@ reset_sent = False
 reset_time = rospy.get_time() + reset_timeout
 
 # get parameters
-easting = rospy.get_param("~easting", '0.0') 
-northing = rospy.get_param("~northing", '0.0') 
-heading = rospy.get_param("~heading", '0.0') 
+easting = rospy.get_param("~easting", '0.0')
+northing = rospy.get_param("~northing", '0.0')
+heading = rospy.get_param("~heading", '0.0')
 
 # create a publisher
-topic_odom_reset = rospy.get_param("~odom_reset_pub", '/fmKnowledge/odometry_reset') 
+topic_odom_reset = rospy.get_param("~odom_reset_pub", '/fmKnowledge/odometry_reset')
 pub = rospy.Publisher(topic_odom_reset, FloatArrayStamped)
 
 # define the reset message
@@ -64,7 +64,7 @@ reset_msg.header.stamp = rospy.Time.now()
 reset_msg.data = [easting, northing, heading*pi/180.0]
 
 # loop until shutdown
-while not rospy.is_shutdown() and rospy.get_time() < reset_time:	
+while not rospy.is_shutdown() and rospy.get_time() < reset_time:
 	pub.publish(reset_msg)
 	rospy.sleep(update_interval)
 

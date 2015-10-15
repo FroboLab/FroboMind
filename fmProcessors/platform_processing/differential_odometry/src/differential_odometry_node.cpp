@@ -55,9 +55,11 @@
 #include <ros/subscriber.h>
 #include <geometry_msgs/TransformStamped.h>
 #include <tf/transform_broadcaster.h>
+#include <boost/assign.hpp>
 #include <string>
+#include <vector>
 
-// defines	
+// defines
 #define IDENT 					"differential_odometry_node"
 
 #define TIMEOUT_LAUNCH				5
@@ -86,7 +88,15 @@ using namespace std;
 class SimpleOdom
 {
 public:
-	SimpleOdom(double tick_to_meter_left, double tick_to_meter_right, double max_ticks_per_update, double wheel_dist, int encoder_output, int yaw_source, int yaw_axis)
+	explicit SimpleOdom(double tick_to_meter_left,
+						double tick_to_meter_right,
+						double max_ticks_per_update,
+						double wheel_dist,
+						int encoder_output,
+						int yaw_source,
+						int yaw_axis,
+						std::vector<double> const &pose_covariance_diagonal_list,
+						std::vector<double> const &twist_covariance_diagonal_list)
 	{
 		this->tick_to_meter_left = tick_to_meter_left;
 		this->tick_to_meter_right = tick_to_meter_right;
@@ -103,10 +113,26 @@ public:
 
 		encoder_timeout = false;
 		imu_timeout = false;
-	
+
 		time_launch = l_time_prev = r_time_prev = imu_time_prev = ros::Time::now();
 		l_updated = r_updated = false;
 		l_first = r_first = true;
+
+		odom.pose.covariance = boost::assign::list_of
+			(pose_covariance_diagonal_list[0]) (0) (0) (0) (0) (0)
+			(0) (pose_covariance_diagonal_list[1]) (0) (0) (0) (0)
+			(0) (0) (pose_covariance_diagonal_list[2]) (0) (0) (0)
+			(0) (0) (0) (pose_covariance_diagonal_list[3]) (0) (0)
+			(0) (0) (0) (0) (pose_covariance_diagonal_list[4]) (0)
+			(0) (0) (0) (0) (0) (pose_covariance_diagonal_list[5]);
+
+		odom.twist.covariance = boost::assign::list_of
+			(twist_covariance_diagonal_list[0]) (0) (0) (0) (0) (0)
+			(0) (twist_covariance_diagonal_list[1]) (0) (0) (0) (0)
+			(0) (0) (twist_covariance_diagonal_list[2]) (0) (0) (0)
+			(0) (0) (0) (twist_covariance_diagonal_list[3]) (0) (0)
+			(0) (0) (0) (0) (twist_covariance_diagonal_list[4]) (0)
+			(0) (0) (0) (0) (0) (twist_covariance_diagonal_list[5]);
 	}
 
 	~SimpleOdom()
@@ -114,7 +140,7 @@ public:
 	}
 
 	double angle_limit (double angle) // keep angle within [0;2*pi[
-	{ 
+	{
 		while (angle >= M_PI2)
 			angle -= M_PI2;
 		while (angle < 0)
@@ -145,7 +171,7 @@ public:
 					l_time_prev = l_time_latest;
 					l_time_latest = ros::Time::now();
 					l_updated = true;
-				}		
+				}
 			}
 			else
 				l_first = false;
@@ -176,7 +202,7 @@ public:
 					r_time_prev = r_time_latest;
 					r_time_latest = ros::Time::now();
 					r_updated = true;
-				}	
+				}
 			}
 			else
 				r_first = false;
@@ -190,7 +216,7 @@ public:
 				r_time_prev = r_time_latest;
 				r_time_latest = ros::Time::now();
 				r_updated = true;
-			}	
+			}
 		}
 	}
 
@@ -206,14 +232,14 @@ public:
 					double qz = msg->orientation.z;
 					double qw = msg->orientation.w;
 					imu_yaw = atan2(2*(qx*qy + qw*qz), qw*qw + qx*qx - qy*qy - qz*qz);
-				}			
+				}
 				break;
 
 			case YAW_SOURCE_IMU_ANGULAR_VELOCITY:
 				{
 					imu_time_latest = ros::Time::now();
 					double dt = (imu_time_latest - imu_time_prev).toSec();
-					imu_time_prev = imu_time_latest;				
+					imu_time_prev = imu_time_latest;
 					switch (yaw_axis)
 					{
 						case YAW_AXIS_X:
@@ -262,7 +288,7 @@ public:
 			}
 
 			// check if we are receiving IMU updates
-			if (yaw_source != YAW_SOURCE_ODOMETRY) 
+			if (yaw_source != YAW_SOURCE_ODOMETRY)
 			{
 				if (! imu_timeout)
 				{
@@ -290,7 +316,7 @@ public:
 
 			// convert encoder ticks to meter
 			double meter_l = tick_l * tick_to_meter_left;
-			double meter_r = tick_r * tick_to_meter_right;		
+			double meter_r = tick_r * tick_to_meter_right;
 
 			// calculate approx. distance (assuming linear motion during dt)
 			double dx = (meter_l + meter_r)/2.0;
@@ -299,7 +325,7 @@ public:
 			double dtheta;
 			if (yaw_source == YAW_SOURCE_ODOMETRY)
 			{
-				dtheta = (meter_r - meter_l)/wheel_dist; 
+				dtheta = (meter_r - meter_l)/wheel_dist;
 			}
 			else // or calculate change in orientation using IMU
 			{
@@ -313,7 +339,7 @@ public:
 			theta += dtheta;
 			theta = angle_limit (theta); // keep theta within [0;2*pi[
 
-   			//since all odometry is 6DOF we'll need a quaternion created from yaw
+			//since all odometry is 6DOF we'll need a quaternion created from yaw
 			geometry_msgs::Quaternion odom_quat = tf::createQuaternionMsgFromYaw(theta);
 
 			// publish the transform message
@@ -333,7 +359,7 @@ public:
 			odom.pose.pose.position.y = y;
 			odom.pose.pose.orientation = odom_quat;
 			double dt = (l_time_latest - l_time_prev).toSec(); // assuming that left and right have the same interval
-			odom.twist.twist.linear.x  = dx/dt; 
+			odom.twist.twist.linear.x  = dx/dt;
 			odom.twist.twist.angular.z = dtheta/dt;
 			odom_pub.publish(odom);
 		}
@@ -402,7 +428,7 @@ int main(int argc, char** argv) {
 	// OBS the following is for backwards compatibility, these parameters should not be used anymore
 	nh.param<double>("/diff_steer_wheel_radius", wheel_radius, 0.25);
 	nh.param<double>("/diff_steer_wheel_ticks_per_rev", wheel_ticks_rev, 360);
-		
+
 	if (ticks_per_meter_left == -1.0 or ticks_per_meter_left == -1.0)
 	{
 		nh.param<double>("ticks_per_meter_left", ticks_per_meter_left, -1.0);
@@ -418,7 +444,7 @@ int main(int argc, char** argv) {
 		tick_to_meter_right = 1.0/ticks_per_meter_right;
 	}
 	else
-	{	
+	{
 		tick_to_meter_left = 2*M_PI*wheel_radius/wheel_ticks_rev;
 		tick_to_meter_right = tick_to_meter_left;
 	}
@@ -472,7 +498,7 @@ int main(int argc, char** argv) {
 		{
 			yaw_axis = YAW_AXIS_X;
 			ROS_INFO("%s IMU yaw axis (ENU): X", IDENT);
-		}		
+		}
 		else if ( yaw_axis_str.compare ("-x") == 0)
 		{
 			yaw_axis = YAW_AXIS_X_INVERTED;
@@ -502,11 +528,23 @@ int main(int argc, char** argv) {
 		{
 			yaw_axis = YAW_AXIS_Z;
 			ROS_WARN("%s IMU yaw axis: Unknown, defaults to Z", IDENT);
-		}		
+		}
 	}
 
+	// covariances
+	std::vector<double> pose_covariance_diagonal_list;
+	std::vector<double> twist_covariance_diagonal_list;
+	nh.param("pose_covariance_diagonal", pose_covariance_diagonal_list);
+	nh.param("twist_covariance_diagonal", twist_covariance_diagonal_list);
+
+	if (pose_covariance_diagonal_list.size() != 6)
+		pose_covariance_diagonal_list = std::vector<double>(6);
+
+	if (twist_covariance_diagonal_list.size() != 6)
+		twist_covariance_diagonal_list = std::vector<double>(6);
+
 	// init class
-	SimpleOdom p(tick_to_meter_left, tick_to_meter_right, max_ticks_per_update, wheel_dist, encoder_output, yaw_source, yaw_axis);
+	SimpleOdom p(tick_to_meter_left, tick_to_meter_right, max_ticks_per_update, wheel_dist, encoder_output, yaw_source, yaw_axis, pose_covariance_diagonal_list, twist_covariance_diagonal_list);
 
 	// subscriber callback functions
 	s1 = nh.subscribe(subscribe_enc_l,15,&SimpleOdom::processLeftEncoder,&p);
