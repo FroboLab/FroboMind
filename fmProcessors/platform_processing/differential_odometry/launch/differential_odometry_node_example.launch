@@ -55,6 +55,8 @@ imu_angular_velocity_yaw_axis options:
 			<param name="imu_angular_velocity_yaw_axis" value="z"></param>
 			<param name="vehicle_frame" value="base_footprint"></param>
 			<param name="odom_estimate_frame" value="/odom_combined"></param>
+			<param name="pose_covariance_diagonal" value="[0.01, 0.01, 0.01, 0.01, 0.01, 0.01]" />
+			<param name="twist_covariance_diagonal" value="[0.01, 0.01, 0.01, 0.01, 0.01, 0.01]" />
 		</node>
 	</group>
 </launch>

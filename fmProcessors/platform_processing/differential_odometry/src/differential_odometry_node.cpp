@@ -55,7 +55,9 @@
 #include <ros/subscriber.h>
 #include <geometry_msgs/TransformStamped.h>
 #include <tf/transform_broadcaster.h>
+#include <boost/assign.hpp>
 #include <string>
+#include <vector>
 
 // defines
 #define IDENT 					"differential_odometry_node"
@@ -86,7 +88,15 @@ using namespace std;
 class SimpleOdom
 {
 public:
-	SimpleOdom(double tick_to_meter_left, double tick_to_meter_right, double max_ticks_per_update, double wheel_dist, int encoder_output, int yaw_source, int yaw_axis)
+	explicit SimpleOdom(double tick_to_meter_left,
+						double tick_to_meter_right,
+						double max_ticks_per_update,
+						double wheel_dist,
+						int encoder_output,
+						int yaw_source,
+						int yaw_axis,
+						std::vector<double> const &pose_covariance_diagonal_list,
+						std::vector<double> const &twist_covariance_diagonal_list)
 	{
 		this->tick_to_meter_left = tick_to_meter_left;
 		this->tick_to_meter_right = tick_to_meter_right;
@@ -107,6 +117,22 @@ public:
 		time_launch = l_time_prev = r_time_prev = imu_time_prev = ros::Time::now();
 		l_updated = r_updated = false;
 		l_first = r_first = true;
+
+		odom.pose.covariance = boost::assign::list_of
+			(pose_covariance_diagonal_list[0]) (0) (0) (0) (0) (0)
+			(0) (pose_covariance_diagonal_list[1]) (0) (0) (0) (0)
+			(0) (0) (pose_covariance_diagonal_list[2]) (0) (0) (0)
+			(0) (0) (0) (pose_covariance_diagonal_list[3]) (0) (0)
+			(0) (0) (0) (0) (pose_covariance_diagonal_list[4]) (0)
+			(0) (0) (0) (0) (0) (pose_covariance_diagonal_list[5]);
+
+		odom.twist.covariance = boost::assign::list_of
+			(twist_covariance_diagonal_list[0]) (0) (0) (0) (0) (0)
+			(0) (twist_covariance_diagonal_list[1]) (0) (0) (0) (0)
+			(0) (0) (twist_covariance_diagonal_list[2]) (0) (0) (0)
+			(0) (0) (0) (twist_covariance_diagonal_list[3]) (0) (0)
+			(0) (0) (0) (0) (twist_covariance_diagonal_list[4]) (0)
+			(0) (0) (0) (0) (0) (twist_covariance_diagonal_list[5]);
 	}
 
 	~SimpleOdom()
@@ -313,7 +339,7 @@ public:
 			theta += dtheta;
 			theta = angle_limit (theta); // keep theta within [0;2*pi[
 
-   			//since all odometry is 6DOF we'll need a quaternion created from yaw
+			//since all odometry is 6DOF we'll need a quaternion created from yaw
 			geometry_msgs::Quaternion odom_quat = tf::createQuaternionMsgFromYaw(theta);
 
 			// publish the transform message
@@ -505,8 +531,20 @@ int main(int argc, char** argv) {
 		}
 	}
 
+	// covariances
+	std::vector<double> pose_covariance_diagonal_list;
+	std::vector<double> twist_covariance_diagonal_list;
+	nh.param("pose_covariance_diagonal", pose_covariance_diagonal_list);
+	nh.param("twist_covariance_diagonal", twist_covariance_diagonal_list);
+
+	if (pose_covariance_diagonal_list.size() != 6)
+		pose_covariance_diagonal_list = std::vector<double>(6);
+
+	if (twist_covariance_diagonal_list.size() != 6)
+		twist_covariance_diagonal_list = std::vector<double>(6);
+
 	// init class
-	SimpleOdom p(tick_to_meter_left, tick_to_meter_right, max_ticks_per_update, wheel_dist, encoder_output, yaw_source, yaw_axis);
+	SimpleOdom p(tick_to_meter_left, tick_to_meter_right, max_ticks_per_update, wheel_dist, encoder_output, yaw_source, yaw_axis, pose_covariance_diagonal_list, twist_covariance_diagonal_list);
 
 	// subscriber callback functions
 	s1 = nh.subscribe(subscribe_enc_l,15,&SimpleOdom::processLeftEncoder,&p);
